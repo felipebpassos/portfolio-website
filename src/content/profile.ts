@@ -17,6 +17,7 @@ export type Profile = {
   name: string;
   email: string;
   links: { github: string; linkedin: string };
+  resume: string;
   role: string;
   tagline: string;
   location: string;
@@ -46,9 +47,19 @@ const source = {
     linkedin: "https://linkedin.com/in/felipebpassos", // TODO
   },
 
+  /**
+   * PDF do currículo, um por idioma. Os arquivos vão em public/.
+   * TODO: adicionar public/felipe-passos-resume.pdf e public/felipe-passos-curriculo.pdf
+   * Deixar a string vazia esconde o botão naquele idioma.
+   */
+  resume: {
+    en: "/felipe-passos-resume.pdf",
+    "pt-br": "/felipe-passos-curriculo.pdf",
+  },
+
   role: {
     en: "AI Engineer",
-    "pt-br": "Engenheiro de Software",
+    "pt-br": "Engenheiro Full-Stack",
   },
 
   tagline: {
@@ -204,6 +215,7 @@ const source = {
   name: string;
   email: string;
   links: { github: string; linkedin: string };
+  resume: Localized<string>;
   role: Localized<string>;
   tagline: Localized<string>;
   location: Localized<string>;
@@ -233,6 +245,7 @@ export function getProfile(locale: Locale): Profile {
     name: source.name,
     email: source.email,
     links: { ...source.links },
+    resume: source.resume[locale],
     role: source.role[locale],
     tagline: source.tagline[locale],
     location: source.location[locale],

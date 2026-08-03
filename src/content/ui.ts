@@ -13,6 +13,8 @@ export type UiStrings = {
   available: string;
   languageLabel: string;
   portfolio: string;
+  resume: string;
+  resumeAria: string;
   ask: {
     header: string;
     placeholder: string;
@@ -47,6 +49,8 @@ const strings: Record<Locale, UiStrings> = {
     available: "Available",
     languageLabel: "Language",
     portfolio: "Portfolio",
+    resume: "Résumé",
+    resumeAria: "Download {name}'s résumé (PDF)",
     ask: {
       header: "Ask about {name}",
       placeholder: "Ask me anything",
@@ -84,7 +88,9 @@ const strings: Record<Locale, UiStrings> = {
   "pt-br": {
     available: "Disponível",
     languageLabel: "Idioma",
-    portfolio: "Portfólio",
+    portfolio: "Ver portfólio",
+    resume: "Currículo",
+    resumeAria: "Baixar o currículo de {name} (PDF)",
     ask: {
       header: "Pergunte sobre {name}",
       placeholder: "Pergunte o que quiser",

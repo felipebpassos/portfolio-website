@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import AskDock from "@/components/AskDock";
@@ -9,6 +10,7 @@ import LocaleToggle from "@/components/LocaleToggle";
 import SkillField from "@/components/SkillField";
 import type { SiteContent } from "@/content";
 import { skillCloud } from "@/content/profile";
+import { fill } from "@/content/ui";
 import { ContentProvider } from "@/lib/content-context";
 
 // O overlay só entra no bundle quando alguém abre o portfolio.
@@ -17,13 +19,7 @@ const PortfolioOverlay = dynamic(() => import("@/components/PortfolioOverlay"));
 export default function Shell({ content }: { content: SiteContent }) {
   const { profile, ui, locale } = content;
   const [portfolioOpen, setPortfolioOpen] = useState(false);
-
-  const initials = profile.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const [chatOpen, setChatOpen] = useState(false);
 
   // "P" abre o portfolio, desde que o foco não esteja num campo de texto.
   useEffect(() => {
@@ -45,10 +41,31 @@ export default function Shell({ content }: { content: SiteContent }) {
 
         <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 py-5 sm:px-8 sm:py-7">
           <div className="pointer-events-auto flex items-center gap-2.5">
-            <span className="grid size-7 place-items-center rounded-md border border-white/15 font-mono text-[10px] text-white/70">
-              {initials}
-            </span>
-            <span className="text-sm text-white/70">{profile.name}</span>
+            <Image
+              src="/me.png"
+              alt={profile.name}
+              width={80}
+              height={80}
+              className="size-10 rounded-full object-cover ring-1 ring-white/15"
+            />
+
+            <div>
+              <span className="block text-sm leading-tight text-white/70">
+                {profile.name}
+              </span>
+
+              {profile.resume && (
+                <a
+                  href={profile.resume}
+                  download
+                  aria-label={fill(ui.resumeAria, { name: profile.name })}
+                  className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] text-white/50 uppercase transition hover:text-white"
+                >
+                  {ui.resume}
+                  <span aria-hidden>↓</span>
+                </a>
+              )}
+            </div>
           </div>
 
           <nav className="pointer-events-auto flex items-center gap-4 font-mono text-[10px] tracking-[0.18em] text-white/40 uppercase">
@@ -56,37 +73,51 @@ export default function Shell({ content }: { content: SiteContent }) {
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]" />
               {ui.available}
             </span>
-            <a
-              href={profile.links.github}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="hidden transition hover:text-white sm:inline"
-            >
-              GitHub
-            </a>
-            <a
-              href={profile.links.linkedin}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="hidden transition hover:text-white sm:inline"
-            >
-              LinkedIn
-            </a>
-            <a
-              href={`mailto:${profile.email}`}
-              className="transition hover:text-white"
-            >
-              Email
-            </a>
             <LocaleToggle locale={locale} label={ui.languageLabel} />
           </nav>
         </header>
 
-        <div className="flex h-full items-center justify-center">
+        {/* Sobe um pouco quando o chat abre, para o painel caber abaixo. */}
+        <div
+          className={`flex h-full flex-col items-center justify-center transition-transform duration-500 ease-out ${
+            chatOpen ? "-translate-y-[7dvh]" : ""
+          }`}
+        >
           <Hero />
+          <AskDock onOpenChange={setChatOpen} />
         </div>
 
-        <AskDock />
+        {/* No mobile são só os links: a casca de vidro roubaria a largura que o
+            botão do Portfolio precisa na mesma linha. */}
+        <nav
+          aria-label={profile.name}
+          className="fixed bottom-5 left-4 z-40 flex items-center gap-3 font-mono text-[10px] tracking-[0.14em] text-white/55 uppercase sm:bottom-8 sm:left-8 sm:gap-4 sm:rounded-full sm:border sm:border-white/10 sm:bg-black/45 sm:px-5 sm:py-2.5 sm:tracking-[0.18em] sm:backdrop-blur-xl"
+        >
+          <a
+            href={profile.links.github}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="transition hover:text-white"
+          >
+            GitHub
+          </a>
+          <span aria-hidden className="hidden h-3 w-px bg-white/15 sm:block" />
+          <a
+            href={profile.links.linkedin}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="transition hover:text-white"
+          >
+            LinkedIn
+          </a>
+          <span aria-hidden className="hidden h-3 w-px bg-white/15 sm:block" />
+          <a
+            href={`mailto:${profile.email}`}
+            className="transition hover:text-white"
+          >
+            Email
+          </a>
+        </nav>
 
         <button
           type="button"

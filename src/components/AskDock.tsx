@@ -11,7 +11,12 @@ type Message = {
   contactSent?: boolean;
 };
 
-export default function AskDock() {
+export default function AskDock({
+  /** Avisa o Shell que o painel abriu, para ele subir o hero e dar espaço. */
+  onOpenChange,
+}: {
+  onOpenChange?: (open: boolean) => void;
+}) {
   const { profile, ui, locale } = useContent();
   const t = ui.ask;
   const firstName = profile.name.split(" ")[0];
@@ -130,10 +135,46 @@ export default function AskDock() {
 
   const showPanel = open && (messages.length > 0 || !busy);
 
+  useEffect(() => {
+    onOpenChange?.(showPanel);
+  }, [showPanel, onOpenChange]);
+
   return (
-    <div className="pointer-events-auto fixed bottom-5 left-4 z-40 w-[min(27rem,calc(100vw-2rem))] sm:bottom-8 sm:left-8">
+    <div
+      className="rise relative z-40 mt-9 w-[min(27rem,calc(100vw-2rem))] sm:mt-11"
+      style={{ animationDelay: "280ms" }}
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void ask(input);
+        }}
+        className="group flex items-center gap-2 rounded-full border border-white/10 bg-black/45 py-2 pr-2 pl-4 backdrop-blur-xl transition focus-within:border-white/25 hover:border-white/20"
+      >
+        <span aria-hidden className="text-sm text-accent/70 select-none">
+          ✳
+        </span>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder={t.placeholder}
+          aria-label={fill(t.inputAria, { name: profile.name })}
+          className="min-w-0 flex-1 bg-transparent py-1 text-sm text-white placeholder:text-white/35 focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={busy || !input.trim()}
+          className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 transition enabled:hover:bg-white/20 disabled:opacity-30"
+          aria-label={t.send}
+        >
+          {busy ? "···" : "↵"}
+        </button>
+      </form>
+
       {showPanel && (
-        <div className="slide-up mb-3 overflow-hidden rounded-2xl border border-white/10 bg-black/55 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+        <div className="slide-down absolute inset-x-0 top-full mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/55 text-left shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <header className="flex items-center justify-between border-b border-white/[0.07] px-4 py-2.5">
             <span className="font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
               {fill(t.header, { name: firstName })}
@@ -151,7 +192,7 @@ export default function AskDock() {
           <div
             ref={logRef}
             aria-live="polite"
-            className="scrollbar-none max-h-[min(26rem,52vh)] space-y-3 overflow-y-auto px-4 py-4 text-sm"
+            className="scrollbar-none max-h-[min(20rem,34dvh)] space-y-3 overflow-y-auto px-4 py-4 text-sm"
           >
             {messages.length === 0 && (
               <div className="space-y-2">
@@ -206,35 +247,6 @@ export default function AskDock() {
           </div>
         </div>
       )}
-
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void ask(input);
-        }}
-        className="group flex items-center gap-2 rounded-full border border-white/10 bg-black/45 py-2 pr-2 pl-4 backdrop-blur-xl transition focus-within:border-white/25 hover:border-white/20"
-      >
-        <span aria-hidden className="text-sm text-accent/70 select-none">
-          ✳
-        </span>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          onFocus={() => setOpen(true)}
-          placeholder={t.placeholder}
-          aria-label={fill(t.inputAria, { name: profile.name })}
-          className="min-w-0 flex-1 bg-transparent py-1 text-sm text-white placeholder:text-white/35 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 transition enabled:hover:bg-white/20 disabled:opacity-30"
-          aria-label={t.send}
-        >
-          {busy ? "···" : "↵"}
-        </button>
-      </form>
     </div>
   );
 }
