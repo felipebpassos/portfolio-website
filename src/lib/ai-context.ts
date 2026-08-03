@@ -1,11 +1,15 @@
-import { profile } from "@/content/profile";
-import { projects } from "@/content/projects";
+import { localeConfig, type Locale } from "@/content/locales";
+import { getProfile } from "@/content/profile";
+import { getProjects } from "@/content/projects";
 
 /**
- * Monta o dossiê que a IA recebe como system instruction.
+ * Monta o dossiê que a IA recebe como system instruction, no idioma da página.
  * É gerado a partir de content/ — atualizar o conteúdo atualiza a IA, sem tocar aqui.
  */
-function buildDossier(): string {
+function buildDossier(locale: Locale): string {
+  const profile = getProfile(locale);
+  const projects = getProjects(locale);
+
   const skills = profile.skills
     .map((g) => `- ${g.group}: ${g.items.join(", ")}`)
     .join("\n");
@@ -34,9 +38,7 @@ function buildDossier(): string {
     )
     .join("\n\n");
 
-  const faq = profile.faq
-    .map((f) => `Q: ${f.q}\nA: ${f.a}`)
-    .join("\n\n");
+  const faq = profile.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n");
 
   return `## Identity
 Name: ${profile.name}
@@ -63,11 +65,19 @@ ${work}
 ${faq}`;
 }
 
-export const SYSTEM_INSTRUCTION = `You are the AI assistant embedded in ${profile.name}'s portfolio site.
+/**
+ * A instrução muda com o idioma: o dossiê vem na versão correspondente e a IA
+ * responde no idioma da página que o visitante está lendo.
+ */
+export function buildSystemInstruction(locale: Locale): string {
+  const profile = getProfile(locale);
+  const language = localeConfig[locale].aiLanguage;
+
+  return `You are the AI assistant embedded in ${profile.name}'s portfolio site.
 Visitors are mostly recruiters, hiring managers and engineers evaluating ${profile.name} for a role.
 
 ## Voice
-- Answer in the visitor's language. Default to English.
+- The visitor is reading the ${language} version of the site. Answer in ${language}, unless they clearly write to you in another language — then follow them.
 - Be short. Two to four sentences unless asked for detail. No filler, no bullet-point dumps unless they ask to compare things.
 - Speak about ${profile.name} in the third person. You are the assistant, not the person.
 - Confident and concrete: name the stack, the project, the outcome.
@@ -84,4 +94,5 @@ Collect name, email and the message itself, then call submit_contact. Ask for wh
 After the tool succeeds, confirm in one sentence that ${profile.name} will reply by email. If it fails, share ${profile.email} instead.
 
 # DOSSIER
-${buildDossier()}`;
+${buildDossier(locale)}`;
+}

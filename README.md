@@ -6,9 +6,9 @@ Portfolio de engenheiro de software: uma tela só, sem rolagem, com um assistent
 ## Rodar
 
 ```bash
-npm install
+yarn install
 cp .env.example .env.local   # preencha as chaves
-npm run dev
+yarn dev
 ```
 
 A home funciona sem nenhuma chave. Sem `GEMINI_API_KEY` o chat responde com erro
@@ -22,6 +22,33 @@ enviar recados.
 | `CONTACT_FROM_EMAIL` | não         | Remetente verificado no Resend (`onboarding@resend.dev` para testar) |
 | `CONTACT_TO_EMAIL`   | não         | Destino dos recados. Padrão: `profile.email`                         |
 
+## Dois idiomas
+
+O site existe em duas URLs, ambas geradas estáticas no build:
+
+| URL      | Idioma            |
+| -------- | ----------------- |
+| `/`      | redireciona → `/en` |
+| `/en`    | inglês (padrão)   |
+| `/pt-br` | português         |
+
+**As versões não são traduções automáticas.** Cada campo carrega os dois textos e
+eles podem dizer coisas diferentes — o `h1` é `AI Engineer` em inglês e
+`Engenheiro de Software` em português:
+
+```ts
+role: {
+  en: "AI Engineer",
+  "pt-br": "Engenheiro de Software",
+},
+```
+
+Campos sem `{ en, "pt-br" }` (email, links, stack, cores, slugs) são iguais nos
+dois idiomas de propósito, para não divergirem. O TypeScript exige os dois
+idiomas em todo campo localizado, então não dá para esquecer metade.
+
+Para trocar o idioma padrão, mude o destino do redirect em `next.config.ts`.
+
 ## O que editar
 
 Todo o conteúdo do site — e o contexto que a IA recebe — sai de dois arquivos:
@@ -34,15 +61,18 @@ Trocar o conteúdo atualiza a interface **e** o que a IA sabe, sem mexer em prom
 
 Outros pontos:
 
-- `public/me.jpg` — sua foto (quadrada, 512px ou mais). O arquivo atual é placeholder.
-- `src/app/layout.tsx` — `metadataBase` está em `https://example.com`, troque pelo domínio final.
+- `src/content/ui.ts` — textos da casca (botões, rótulos, erros), um dicionário por idioma.
+- `public/me.png` — sua foto. A atual é recortada em círculo com `object-cover`.
+- `src/app/[lang]/layout.tsx` — `metadataBase` está em `https://example.com`, troque pelo domínio final.
 
 ## Estrutura
 
 ```
 src/
   app/
-    page.tsx              home (estática, pré-renderizada no build)
+    [lang]/
+      layout.tsx          root layout: <html lang>, metadata e hreflang por idioma
+      page.tsx            resolve o conteúdo do idioma e entrega ao Shell
     api/ask/route.ts      Gemini + streaming + function calling → Resend
   components/
     Shell.tsx             estado da página e chrome (topo, botão do portfolio)
@@ -50,17 +80,30 @@ src/
     Hero.tsx              foto, h1 e subtítulo
     AskDock.tsx           campo de pergunta + chat, canto inferior esquerdo
     PortfolioOverlay.tsx  overlay em tela cheia, scroll horizontal + detalhe
-  content/                fonte de verdade (profile, projects)
-  lib/ai-context.ts       monta o system prompt a partir de content/
+    LocaleToggle.tsx      pílula EN / PT-BR (dois links reais)
+  content/
+    locales.ts            idiomas suportados e o tipo Localized<T>
+    profile.ts            perfil nos dois idiomas + getProfile(locale)
+    projects.ts           projetos nos dois idiomas + getProjects(locale)
+    ui.ts                 textos da interface, um dicionário por idioma
+    index.ts              getContent(locale): resolve o site inteiro
+  lib/
+    ai-context.ts         monta o system prompt no idioma da página
+    content-context.tsx   entrega o conteúdo resolvido aos componentes cliente
 ```
 
-A home é estática. Só `/api/ask` roda no servidor, e é por isso que a chave do
-Gemini nunca chega ao browser.
+O idioma é resolvido **uma vez, no servidor**: `getContent(locale)` devolve
+objetos comuns e os componentes recebem só o idioma pedido, sem saber que existe
+i18n. Nenhum dos dois idiomas carrega o texto do outro.
+
+As duas páginas são estáticas. Só `/api/ask` roda no servidor, e é por isso que a
+chave do Gemini nunca chega ao browser.
 
 ## Como o chat funciona
 
-1. O browser faz `POST /api/ask` com o histórico da conversa.
-2. A rota chama o Gemini com o dossiê montado a partir de `content/`.
+1. O browser faz `POST /api/ask` com o histórico da conversa e o idioma da página.
+2. A rota chama o Gemini com o dossiê montado a partir de `content/`, na versão
+   daquele idioma — quem lê `/pt-br` recebe resposta em português.
 3. A resposta volta em streaming (NDJSON, uma linha por evento) e é escrita na tela token a token.
 4. Se o visitante demonstra interesse de contratação, o modelo chama a tool
    `submit_contact`; a rota valida os dados e envia o email pelo Resend.

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { profile } from "@/content/profile";
+import { fill } from "@/content/ui";
+import { useContent } from "@/lib/content-context";
 
 type Message = {
   role: "user" | "model";
@@ -10,13 +11,11 @@ type Message = {
   contactSent?: boolean;
 };
 
-const SUGGESTIONS = [
-  "What has he built with LLMs?",
-  "How much AWS experience?",
-  "Is he open to work?",
-];
-
 export default function AskDock() {
+  const { profile, ui, locale } = useContent();
+  const t = ui.ask;
+  const firstName = profile.name.split(" ")[0];
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,6 +69,8 @@ export default function AskDock() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // O idioma da página define o dossiê e o idioma da resposta.
+          locale,
           messages: history.map(({ role, text }) => ({ role, text })),
         }),
         signal: controller.signal,
@@ -77,7 +78,7 @@ export default function AskDock() {
 
       if (!response.ok || !response.body) {
         const detail = await response.json().catch(() => null);
-        throw new Error(detail?.error ?? "Request failed.");
+        throw new Error(detail?.error ?? t.requestFailed);
       }
 
       const reader = response.body.getReader();
@@ -107,7 +108,7 @@ export default function AskDock() {
           } else if (event.type === "contact") {
             patchLast((m) => ({ ...m, contactSent: event.ok === true }));
           } else if (event.type === "error") {
-            setError(event.value ?? "Something went wrong.");
+            setError(event.value ?? t.somethingWrong);
           }
         }
       }
@@ -115,12 +116,12 @@ export default function AskDock() {
       patchLast((m) =>
         m.text.trim()
           ? m
-          : { ...m, text: `No answer came back. Reach out at ${profile.email}.` },
+          : { ...m, text: fill(t.noAnswer, { email: profile.email }) },
       );
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setMessages(history);
-      setError((err as Error).message || "Could not reach the assistant.");
+      setError((err as Error).message || t.unreachable);
     } finally {
       setBusy(false);
       abortRef.current = null;
@@ -135,13 +136,13 @@ export default function AskDock() {
         <div className="slide-up mb-3 overflow-hidden rounded-2xl border border-white/10 bg-black/55 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <header className="flex items-center justify-between border-b border-white/[0.07] px-4 py-2.5">
             <span className="font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-              Ask about {profile.name.split(" ")[0]}
+              {fill(t.header, { name: firstName })}
             </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="-mr-1 rounded-md px-2 py-1 text-xs text-white/40 transition hover:bg-white/5 hover:text-white/80"
-              aria-label="Close conversation"
+              aria-label={t.close}
             >
               ✕
             </button>
@@ -155,11 +156,10 @@ export default function AskDock() {
             {messages.length === 0 && (
               <div className="space-y-2">
                 <p className="text-sm text-white/45">
-                  Ask anything about {profile.name.split(" ")[0]}&apos;s experience,
-                  projects or availability.
+                  {fill(t.empty, { name: firstName })}
                 </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {SUGGESTIONS.map((s) => (
+                  {t.suggestions.map((s) => (
                     <button
                       key={s}
                       type="button"
@@ -190,12 +190,12 @@ export default function AskDock() {
                   </p>
                   {message.contactSent === true && (
                     <p className="mt-2 font-mono text-[10px] tracking-[0.16em] text-accent uppercase">
-                      ✓ Message delivered
+                      {t.delivered}
                     </p>
                   )}
                   {message.contactSent === false && (
                     <p className="mt-2 font-mono text-[10px] tracking-[0.16em] text-amber-400/80 uppercase">
-                      ! Not delivered — email {profile.email}
+                      {fill(t.notDelivered, { email: profile.email })}
                     </p>
                   )}
                 </div>
@@ -222,15 +222,15 @@ export default function AskDock() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onFocus={() => setOpen(true)}
-          placeholder="Ask me anything"
-          aria-label={`Ask anything about ${profile.name}`}
+          placeholder={t.placeholder}
+          aria-label={fill(t.inputAria, { name: profile.name })}
           className="min-w-0 flex-1 bg-transparent py-1 text-sm text-white placeholder:text-white/35 focus:outline-none"
         />
         <button
           type="submit"
           disabled={busy || !input.trim()}
           className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 transition enabled:hover:bg-white/20 disabled:opacity-30"
-          aria-label="Send question"
+          aria-label={t.send}
         >
           {busy ? "···" : "↵"}
         </button>

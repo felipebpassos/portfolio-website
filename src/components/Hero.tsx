@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 
-import { profile } from "@/content/profile";
+import { useContent } from "@/lib/content-context";
 
 export default function Hero() {
+  const { profile } = useContent();
+
   return (
     <div className="relative z-10 flex flex-col items-center px-6 text-center">
       <div className="rise relative mb-8 sm:mb-10">

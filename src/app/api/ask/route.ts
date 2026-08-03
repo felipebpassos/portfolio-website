@@ -8,8 +8,12 @@ import {
 } from "@google/genai";
 import { Resend } from "resend";
 
-import { profile } from "@/content/profile";
-import { SYSTEM_INSTRUCTION } from "@/lib/ai-context";
+import { DEFAULT_LOCALE, hasLocale, type Locale } from "@/content/locales";
+import { getProfile } from "@/content/profile";
+import { buildSystemInstruction } from "@/lib/ai-context";
+
+// Nome e email não mudam de idioma — qualquer locale serve para lê-los.
+const profile = getProfile(DEFAULT_LOCALE);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,9 +148,16 @@ export async function POST(request: Request) {
   }
 
   let messages: ClientMessage[];
+  let locale: Locale = DEFAULT_LOCALE;
   try {
-    const body = (await request.json()) as { messages?: ClientMessage[] };
+    const body = (await request.json()) as {
+      messages?: ClientMessage[];
+      locale?: string;
+    };
     messages = Array.isArray(body.messages) ? body.messages : [];
+    if (typeof body.locale === "string" && hasLocale(body.locale)) {
+      locale = body.locale;
+    }
   } catch {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -170,7 +181,7 @@ export async function POST(request: Request) {
             model: MODEL,
             contents,
             config: {
-              systemInstruction: SYSTEM_INSTRUCTION,
+              systemInstruction: buildSystemInstruction(locale),
               temperature: 0.6,
               maxOutputTokens: 700,
               tools: [{ functionDeclarations: [submitContact] }],

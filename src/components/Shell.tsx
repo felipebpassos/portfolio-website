@@ -5,21 +5,25 @@ import { useEffect, useState } from "react";
 
 import AskDock from "@/components/AskDock";
 import Hero from "@/components/Hero";
+import LocaleToggle from "@/components/LocaleToggle";
 import SkillField from "@/components/SkillField";
-import { profile, skillCloud } from "@/content/profile";
+import type { SiteContent } from "@/content";
+import { skillCloud } from "@/content/profile";
+import { ContentProvider } from "@/lib/content-context";
 
 // O overlay só entra no bundle quando alguém abre o portfolio.
 const PortfolioOverlay = dynamic(() => import("@/components/PortfolioOverlay"));
 
-const initials = profile.name
-  .split(" ")
-  .map((part) => part[0])
-  .join("")
-  .slice(0, 2)
-  .toUpperCase();
-
-export default function Shell() {
+export default function Shell({ content }: { content: SiteContent }) {
+  const { profile, ui, locale } = content;
   const [portfolioOpen, setPortfolioOpen] = useState(false);
+
+  const initials = profile.name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   // "P" abre o portfolio, desde que o foco não esteja num campo de texto.
   useEffect(() => {
@@ -35,69 +39,72 @@ export default function Shell() {
   }, []);
 
   return (
-    <main className="relative h-[100dvh] overflow-hidden">
-      <SkillField skills={skillCloud} />
+    <ContentProvider content={content}>
+      <main className="relative h-[100dvh] overflow-hidden">
+        <SkillField skills={skillCloud} />
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 py-5 sm:px-8 sm:py-7">
-        <div className="pointer-events-auto flex items-center gap-2.5">
-          <span className="grid size-7 place-items-center rounded-md border border-white/15 font-mono text-[10px] text-white/70">
-            {initials}
-          </span>
-          <span className="text-sm text-white/70">{profile.name}</span>
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 py-5 sm:px-8 sm:py-7">
+          <div className="pointer-events-auto flex items-center gap-2.5">
+            <span className="grid size-7 place-items-center rounded-md border border-white/15 font-mono text-[10px] text-white/70">
+              {initials}
+            </span>
+            <span className="text-sm text-white/70">{profile.name}</span>
+          </div>
+
+          <nav className="pointer-events-auto flex items-center gap-4 font-mono text-[10px] tracking-[0.18em] text-white/40 uppercase">
+            <span className="hidden items-center gap-2 sm:flex">
+              <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]" />
+              {ui.available}
+            </span>
+            <a
+              href={profile.links.github}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="hidden transition hover:text-white sm:inline"
+            >
+              GitHub
+            </a>
+            <a
+              href={profile.links.linkedin}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="hidden transition hover:text-white sm:inline"
+            >
+              LinkedIn
+            </a>
+            <a
+              href={`mailto:${profile.email}`}
+              className="transition hover:text-white"
+            >
+              Email
+            </a>
+            <LocaleToggle locale={locale} label={ui.languageLabel} />
+          </nav>
+        </header>
+
+        <div className="flex h-full items-center justify-center">
+          <Hero />
         </div>
 
-        <nav className="pointer-events-auto flex items-center gap-4 font-mono text-[10px] tracking-[0.18em] text-white/40 uppercase">
-          <span className="hidden items-center gap-2 sm:flex">
-            <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]" />
-            Available
+        <AskDock />
+
+        <button
+          type="button"
+          onClick={() => setPortfolioOpen(true)}
+          className="group fixed right-4 bottom-5 z-40 flex items-center gap-3 rounded-full border border-white/10 bg-black/45 py-2.5 pr-3 pl-5 backdrop-blur-xl transition hover:border-white/25 sm:right-8 sm:bottom-8"
+        >
+          <span className="font-mono text-[10px] tracking-[0.2em] text-white/70 uppercase transition group-hover:text-white">
+            {ui.portfolio}
           </span>
-          <a
-            href={profile.links.github}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="transition hover:text-white"
-          >
-            GitHub
-          </a>
-          <a
-            href={profile.links.linkedin}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="transition hover:text-white"
-          >
-            LinkedIn
-          </a>
-          <a
-            href={`mailto:${profile.email}`}
-            className="transition hover:text-white"
-          >
-            Email
-          </a>
-        </nav>
-      </header>
+          <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs text-white/70 transition group-hover:bg-accent/20 group-hover:text-accent">
+            →
+          </span>
+        </button>
 
-      <div className="flex h-full items-center justify-center">
-        <Hero />
-      </div>
-
-      <AskDock />
-
-      <button
-        type="button"
-        onClick={() => setPortfolioOpen(true)}
-        className="group fixed right-4 bottom-5 z-40 flex items-center gap-3 rounded-full border border-white/10 bg-black/45 py-2.5 pr-3 pl-5 backdrop-blur-xl transition hover:border-white/25 sm:right-8 sm:bottom-8"
-      >
-        <span className="font-mono text-[10px] tracking-[0.2em] text-white/70 uppercase transition group-hover:text-white">
-          Portfolio
-        </span>
-        <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs text-white/70 transition group-hover:bg-accent/20 group-hover:text-accent">
-          →
-        </span>
-      </button>
-
-      {portfolioOpen && (
-        <PortfolioOverlay onClose={() => setPortfolioOpen(false)} />
-      )}
-    </main>
+        {portfolioOpen && (
+          <PortfolioOverlay onClose={() => setPortfolioOpen(false)} />
+        )}
+      </main>
+    </ContentProvider>
   );
 }

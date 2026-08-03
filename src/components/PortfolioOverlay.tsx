@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { projects, type Project } from "@/content/projects";
+import type { Project } from "@/content/projects";
+import { fill } from "@/content/ui";
+import { useContent } from "@/lib/content-context";
 
 export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
+  const { projects, ui } = useContent();
+  const t = ui.work;
   const trackRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Project | null>(null);
 
@@ -60,16 +64,16 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Selected work"
+      aria-label={t.title}
       className="fade-in fixed inset-0 z-50 flex flex-col bg-ink/92 backdrop-blur-2xl"
     >
       <header className="flex shrink-0 items-center justify-between px-5 py-5 sm:px-10">
         <div>
           <h2 className="text-sm font-medium tracking-[-0.01em] text-white">
-            Selected work
+            {t.title}
           </h2>
           <p className="mt-0.5 font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
-            {projects.length} projects
+            {fill(t.count, { count: projects.length })}
           </p>
         </div>
         <button
@@ -77,7 +81,7 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           className="rounded-full border border-white/10 px-4 py-1.5 font-mono text-[10px] tracking-[0.2em] text-white/55 uppercase transition hover:border-white/30 hover:text-white"
         >
-          Close · Esc
+          {t.close}
         </button>
       </header>
 
@@ -101,7 +105,7 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={() => scrollByCard(-1)}
           className="rounded-full border border-white/10 px-2.5 py-1 transition hover:border-white/30 hover:text-white/70"
-          aria-label="Previous project"
+          aria-label={t.previous}
         >
           ←
         </button>
@@ -109,11 +113,11 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={() => scrollByCard(1)}
           className="rounded-full border border-white/10 px-2.5 py-1 transition hover:border-white/30 hover:text-white/70"
-          aria-label="Next project"
+          aria-label={t.next}
         >
           →
         </button>
-        <span>Scroll or use arrows · click a card for details</span>
+        <span>{t.hint}</span>
       </footer>
 
       {selected && (
@@ -132,6 +136,8 @@ function ProjectCard({
   index: number;
   onSelect: () => void;
 }) {
+  const t = useContent().ui.work;
+
   return (
     <button
       data-card
@@ -178,7 +184,7 @@ function ProjectCard({
         </div>
 
         <span className="mt-5 inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase transition group-hover:text-accent">
-          View details →
+          {t.viewDetails} →
         </span>
       </div>
     </button>
@@ -192,6 +198,8 @@ function ProjectDetail({
   project: Project;
   onBack: () => void;
 }) {
+  const t = useContent().ui.work;
+
   return (
     <div className="fade-in absolute inset-0 z-10 overflow-y-auto bg-ink/97 backdrop-blur-2xl">
       <div
@@ -208,7 +216,7 @@ function ProjectDetail({
           onClick={onBack}
           className="rounded-full border border-white/10 px-4 py-1.5 font-mono text-[10px] tracking-[0.2em] text-white/55 uppercase transition hover:border-white/30 hover:text-white"
         >
-          ← Back
+          ← {t.back}
         </button>
 
         <div className="slide-up mt-8">
@@ -243,7 +251,7 @@ function ProjectDetail({
           <p className="mt-8 leading-relaxed text-white/70">{project.summary}</p>
 
           <h4 className="mt-10 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-            What I built
+            {t.highlights}
           </h4>
           <ul className="mt-4 space-y-3">
             {project.highlights.map((highlight) => (
@@ -255,7 +263,7 @@ function ProjectDetail({
           </ul>
 
           <h4 className="mt-10 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-            Stack
+            {t.stack}
           </h4>
           <div className="mt-4 flex flex-wrap gap-2">
             {project.stack.map((tech) => (
