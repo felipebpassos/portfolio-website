@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #06060a;
+  --color-ink-soft: #0c0c12;
+  --color-chalk: #ededf2;
+  --color-muted: #8b8b99;
+  --color-accent: #7dd3fc;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  color-scheme: dark;
+  /* Posição do ponteiro em px, escrita pelo SkillField e lida pelos brilhos. */
+  --mx: 50vw;
+  --my: 50vh;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-chalk);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  color: #fff;
+}
+
+/* Scrollbar discreta — o overlay do portfolio rola na horizontal. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Fundo: blobs em movimento lento, bem dessaturados --- */
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate3d(-8%, -6%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, 8%, 0) scale(1.15);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate3d(10%, 4%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-6%, -10%, 0) scale(0.95);
+  }
+}
+
+.blob-a {
+  animation: drift-a 24s ease-in-out infinite;
+}
+.blob-b {
+  animation: drift-b 31s ease-in-out infinite;
+}
+
+/* Deriva lenta das palavras de skill, independente da reação ao mouse. */
+@keyframes float-word {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -9px, 0);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fade-in 0.35s ease-out both;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.slide-up {
+  animation: slide-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.blink {
+  animation: blink 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
