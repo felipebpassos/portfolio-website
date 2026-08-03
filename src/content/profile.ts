@@ -7,7 +7,7 @@
 export const profile = {
   // TODO: seu nome
   name: "Felipe Passos",
-  role: "Full-Stack Engineer",
+  role: "AI Engineer",
   tagline: "React Native · Next.js · Node.js · AWS · LLMs",
   location: "Brazil · Remote (UTC-3)",
   email: "felipebpassos@gmail.com",

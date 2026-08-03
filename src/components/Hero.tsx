@@ -10,9 +10,8 @@ export default function Hero() {
           aria-hidden
           className="absolute -inset-6 rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.22),transparent_70%)] blur-xl"
         />
-        {/* Troque public/me.jpg pela sua foto (quadrada, 512px ou mais). */}
         <Image
-          src="/me.jpg"
+          src="/me.png"
           alt={profile.name}
           width={144}
           height={144}
