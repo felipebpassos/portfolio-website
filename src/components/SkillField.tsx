@@ -14,11 +14,11 @@ function noise(seed: number): number {
  * Distribui as palavras numa grade com jitter, pulando as células centrais
  * (onde ficam foto, título e subtítulo).
  */
-function buildLayout(count: number, narrow: boolean): Point[] {
-  const cols = narrow ? 3 : 6;
-  const rows = narrow ? 7 : 5;
-  const safeCols = narrow ? [1] : [2, 3];
-  const safeRows = narrow ? [2, 3, 4] : [1, 2, 3];
+function buildLayout(count: number): Point[] {
+  const cols = 6;
+  const rows = 5;
+  const safeCols = [2, 3];
+  const safeRows = [1, 2, 3];
 
   const cells: Point[] = [];
   for (let row = 0; row < rows; row++) {
@@ -26,8 +26,8 @@ function buildLayout(count: number, narrow: boolean): Point[] {
       if (safeCols.includes(col) && safeRows.includes(row)) continue;
       const seed = row * cols + col;
       cells.push({
-        x: ((col + 0.5) / cols) * 100 + (noise(seed) - 0.5) * (narrow ? 8 : 9),
-        y: ((row + 0.5) / rows) * 100 + (noise(seed + 97) - 0.5) * (narrow ? 6 : 9),
+        x: ((col + 0.5) / cols) * 100 + (noise(seed) - 0.5) * 9,
+        y: ((row + 0.5) / rows) * 100 + (noise(seed + 97) - 0.5) * 9,
       });
     }
   }
@@ -35,14 +35,28 @@ function buildLayout(count: number, narrow: boolean): Point[] {
   return cells.slice(0, count);
 }
 
+/**
+ * As palavras só fazem sentido onde existe cursor de verdade para acendê-las.
+ * Em telas de toque (ou janelas estreitas) sobra apenas a luz de fundo.
+ */
+function wordsMakeSense(): boolean {
+  return (
+    window.matchMedia("(pointer: fine)").matches && window.innerWidth >= 768
+  );
+}
+
 export default function SkillField({ skills }: { skills: string[] }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [layout, setLayout] = useState<Point[]>([]);
+  const [interactive, setInteractive] = useState(false);
 
   useEffect(() => {
-    const applyLayout = () =>
-      setLayout(buildLayout(skills.length, window.innerWidth < 768));
+    const applyLayout = () => {
+      const canInteract = wordsMakeSense();
+      setInteractive(canInteract);
+      setLayout(canInteract ? buildLayout(skills.length) : []);
+    };
 
     applyLayout();
     window.addEventListener("resize", applyLayout);
@@ -51,7 +65,8 @@ export default function SkillField({ skills }: { skills: string[] }) {
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!layout.length || !root) return;
+    // Sem palavras o loop continua: é ele que move a luz de fundo.
+    if (!root) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -78,7 +93,10 @@ export default function SkillField({ skills }: { skills: string[] }) {
       target.x = event.clientX;
       target.y = event.clientY;
     };
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    // No toque a luz nunca segue o dedo: ela passeia sozinha, sempre.
+    if (interactive) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+    }
 
     let frame = 0;
     const start = performance.now();
@@ -135,7 +153,7 @@ export default function SkillField({ skills }: { skills: string[] }) {
       window.removeEventListener("resize", measure);
       window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [layout]);
+  }, [layout, interactive]);
 
   return (
     <div

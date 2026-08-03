@@ -8,7 +8,7 @@ export default function Hero() {
   const { profile } = useContent();
 
   return (
-    <div className="relative z-10 flex flex-col items-center px-6 text-center">
+    <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
       <div className="rise relative mb-8 sm:mb-10">
         <div
           aria-hidden
@@ -32,7 +32,7 @@ export default function Hero() {
       </h1>
 
       <p
-        className="rise mt-5 font-mono text-[clamp(0.7rem,2.4vw,0.95rem)] tracking-[0.14em] text-white/45 sm:mt-6"
+        className="rise mt-5 font-mono text-[clamp(0.55rem,2.7vw,0.95rem)] tracking-[0.1em] whitespace-nowrap text-white/45 sm:mt-6 sm:tracking-[0.14em]"
         style={{ animationDelay: "180ms" }}
       >
         {profile.tagline}

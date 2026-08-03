@@ -91,7 +91,7 @@ export default function Shell({ content }: { content: SiteContent }) {
             botão do Portfolio precisa na mesma linha. */}
         <nav
           aria-label={profile.name}
-          className="fixed bottom-5 left-4 z-40 flex items-center gap-3 font-mono text-[10px] tracking-[0.14em] text-white/55 uppercase sm:bottom-8 sm:left-8 sm:gap-4 sm:rounded-full sm:border sm:border-white/10 sm:bg-black/45 sm:px-5 sm:py-2.5 sm:tracking-[0.18em] sm:backdrop-blur-xl"
+          className="fixed bottom-5 left-4 z-40 flex h-11 items-center gap-3 font-mono text-[10px] tracking-[0.14em] text-white/55 uppercase sm:bottom-8 sm:left-8 sm:h-auto sm:gap-4 sm:rounded-full sm:border sm:border-white/10 sm:bg-black/45 sm:px-5 sm:py-2.5 sm:tracking-[0.18em] sm:backdrop-blur-xl"
         >
           <a
             href={profile.links.github}
