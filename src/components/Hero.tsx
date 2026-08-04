@@ -8,7 +8,10 @@ export default function Hero() {
   const { profile } = useContent();
 
   return (
-    <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
+    // pointer-events-none: nada aqui é clicável, e a caixa do título cobre
+    // palavras do fundo que precisam receber clique (some em PT-BR, que tem
+    // título mais largo).
+    <div className="pointer-events-none relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
       <div className="rise relative mb-8 sm:mb-10">
         <div
           aria-hidden

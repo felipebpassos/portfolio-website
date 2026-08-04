@@ -94,23 +94,38 @@ const source = {
   /**
    * Grupos de skills. Os nomes das tecnologias não mudam de idioma —
    * só o rótulo do grupo. A lista achatada alimenta o campo reativo do hero.
+   *
+   * ATENÇÃO: o campo do hero tem 24 posições (grade 6x5 menos as 6 células
+   * centrais reservadas ao título). O que passar de 24 é descartado em
+   * silêncio — ver buildLayout em components/SkillField.tsx.
    */
   skills: [
     {
       group: { en: "Frontend", "pt-br": "Frontend" },
-      items: ["React", "React Native", "Next.js", "TypeScript", "Tailwind", "Expo"],
+      items: ["React Native", "Next.js", "TypeScript", "Expo"],
     },
     {
-      group: { en: "Backend", "pt-br": "Backend" },
-      items: ["Node.js", "NestJS", "PostgreSQL", "Prisma", "Redis", "REST", "WebSockets"],
+      group: { en: "Backend & APIs", "pt-br": "Backend & APIs" },
+      items: ["Node.js", "NestJS", "REST", "GraphQL", "WebSockets", "WebRTC"],
     },
     {
-      group: { en: "Cloud & Infra", "pt-br": "Nuvem & Infra" },
-      items: ["AWS", "Lambda", "S3", "RDS", "Docker", "CI/CD", "Vercel"],
+      group: { en: "Databases", "pt-br": "Bancos de dados" },
+      items: ["PostgreSQL", "MySQL", "MongoDB", "Redis"],
+    },
+    {
+      group: { en: "Cloud & DevOps", "pt-br": "Nuvem & DevOps" },
+      items: ["AWS", "Lambda", "Docker", "CI/CD"],
+    },
+    {
+      group: {
+        en: "Automation & Integrations",
+        "pt-br": "Automação & Integrações",
+      },
+      items: ["n8n", "Webhooks", "Jobs"],
     },
     {
       group: { en: "AI", "pt-br": "IA" },
-      items: ["LLMs", "RAG", "Embeddings", "Function calling", "Prompt design"],
+      items: ["LLMs", "RAG", "Prompt design"],
     },
   ],
 

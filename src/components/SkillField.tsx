@@ -1,8 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
+
+import { useContent } from "@/lib/content-context";
 
 type Point = { x: number; y: number };
+
+/** Posição da tooltip. Ancora em top OU bottom, conforme o espaço na tela. */
+type Tooltip = {
+  index: number;
+  left: number;
+  top?: number;
+  bottom?: number;
+};
+
+const TOOLTIP_WIDTH = 288; // w-72
+const EDGE = 12;
 
 /** Ruído determinístico: mesma posição em todo render, sem Math.random. */
 function noise(seed: number): number {
@@ -12,7 +32,10 @@ function noise(seed: number): number {
 
 /**
  * Distribui as palavras numa grade com jitter, pulando as células centrais
- * (onde ficam foto, título e subtítulo).
+ * (onde ficam foto, título, subtítulo e o campo de pergunta).
+ *
+ * São 6x5 menos 6 células reservadas = 24 posições. Palavras além disso são
+ * descartadas — manter content/profile.ts dentro desse limite.
  */
 function buildLayout(count: number): Point[] {
   const cols = 6;
@@ -45,23 +68,91 @@ function wordsMakeSense(): boolean {
   );
 }
 
-export default function SkillField({ skills }: { skills: string[] }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const [layout, setLayout] = useState<Point[]>([]);
-  const [interactive, setInteractive] = useState(false);
+/** Reavalia quando a janela muda de tamanho ou o tipo de ponteiro muda. */
+function subscribeToPointer(onChange: () => void) {
+  const query = window.matchMedia("(pointer: fine)");
+  window.addEventListener("resize", onChange);
+  query.addEventListener("change", onChange);
+  return () => {
+    window.removeEventListener("resize", onChange);
+    query.removeEventListener("change", onChange);
+  };
+}
 
+export default function SkillField({ skills }: { skills: string[] }) {
+  const { glossary, ui } = useContent();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const wordRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [tooltip, setTooltip] = useState<Tooltip | null>(null);
+
+  // Estado derivado do ambiente, não do render: no servidor é sempre false,
+  // então a hidratação bate e as palavras entram depois.
+  const interactive = useSyncExternalStore(
+    subscribeToPointer,
+    wordsMakeSense,
+    () => false,
+  );
+
+  const layout = useMemo(
+    () => (interactive ? buildLayout(skills.length) : []),
+    [interactive, skills.length],
+  );
+
+  // O loop de animação lê a seleção por ref: ele roda a 60fps e não pode
+  // ser reiniciado a cada clique.
+  const selectedRef = useRef<number | null>(null);
   useEffect(() => {
-    const applyLayout = () => {
-      const canInteract = wordsMakeSense();
-      setInteractive(canInteract);
-      setLayout(canInteract ? buildLayout(skills.length) : []);
+    selectedRef.current = tooltip?.index ?? null;
+  }, [tooltip]);
+
+  function openTooltip(index: number, el: HTMLElement) {
+    const rect = el.getBoundingClientRect();
+    const half = TOOLTIP_WIDTH / 2;
+    const center = rect.left + rect.width / 2;
+
+    setTooltip({
+      index,
+      // Encosta na borda em vez de vazar da tela.
+      left: Math.min(
+        Math.max(center, half + EDGE),
+        window.innerWidth - half - EDGE,
+      ),
+      // Sem altura conhecida ainda: ancorar por bottom evita ter que medir.
+      ...(rect.bottom + 200 > window.innerHeight
+        ? { bottom: window.innerHeight - rect.top + 12 }
+        : { top: rect.bottom + 12 }),
+    });
+  }
+
+  // Esc e clique fora fecham. Um clique em outra palavra fecha e reabre,
+  // porque o pointerdown chega antes do click.
+  useEffect(() => {
+    if (!tooltip) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!tooltipRef.current?.contains(event.target as Node)) {
+        setTooltip(null);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTooltip(null);
     };
 
-    applyLayout();
-    window.addEventListener("resize", applyLayout);
-    return () => window.removeEventListener("resize", applyLayout);
-  }, [skills.length]);
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [tooltip]);
+
+  // Redimensionar move as palavras: a tooltip ficaria apontando para o vazio.
+  useEffect(() => {
+    const close = () => setTooltip(null);
+    window.addEventListener("resize", close);
+    return () => window.removeEventListener("resize", close);
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -123,6 +214,15 @@ export default function SkillField({ skills }: { skills: string[] }) {
         const el = wordRefs.current[i];
         const center = centers[i];
         if (!el || !center) continue;
+
+        // A palavra aberta fica acesa e parada, senão ela fugiria do cursor
+        // enquanto a pessoa lê a explicação.
+        if (i === selectedRef.current) {
+          el.style.opacity = "1";
+          el.style.transform = "translate3d(0,0,0) scale(1.14)";
+          el.style.textShadow = "0 0 20px rgba(125, 211, 252, 0.7)";
+          continue;
+        }
 
         const dx = center.x - cursor.x;
         const dy = center.y - cursor.y;
@@ -199,16 +299,56 @@ export default function SkillField({ skills }: { skills: string[] }) {
             animation: `float-word ${9 + noise(i) * 7}s ease-in-out ${noise(i + 41) * -8}s infinite`,
           }}
         >
-          <span
+          <button
+            type="button"
+            // Fora da ordem de tabulação: são 24 palavras decorativas antes
+            // do conteúdo real, e o campo só existe onde há mouse.
+            tabIndex={-1}
             ref={(el) => {
               wordRefs.current[i] = el;
             }}
-            className="block font-mono text-[11px] tracking-[0.22em] whitespace-nowrap text-white uppercase opacity-[0.06] will-change-transform sm:text-xs"
+            onClick={(event) => openTooltip(i, event.currentTarget)}
+            className="pointer-events-auto block cursor-pointer font-mono text-[11px] tracking-[0.22em] whitespace-nowrap text-white uppercase opacity-[0.06] will-change-transform sm:text-xs"
           >
             {skills[i]}
-          </span>
+          </button>
         </div>
       ))}
+
+      {/* Portal para o body: dentro do SkillField (que é fixed, logo abre um
+          contexto de empilhamento) nenhum z-index escaparia para cima do hero.
+          z-[45] fica acima do dock e dos links, e abaixo do overlay (z-50). */}
+      {tooltip &&
+        glossary[skills[tooltip.index]] &&
+        createPortal(
+          <div
+            ref={tooltipRef}
+            className="slide-down fixed z-[45] w-72 rounded-xl border border-white/12 bg-black/85 p-4 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl"
+            style={{
+              left: tooltip.left - TOOLTIP_WIDTH / 2,
+              top: tooltip.top,
+              bottom: tooltip.bottom,
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-mono text-[10px] tracking-[0.2em] text-accent uppercase">
+                {skills[tooltip.index]}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTooltip(null)}
+                aria-label={ui.skillClose}
+                className="-mt-1 -mr-1 rounded-md px-1.5 py-0.5 text-xs text-white/35 transition hover:bg-white/5 hover:text-white/80"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-white/70">
+              {glossary[skills[tooltip.index]]}
+            </p>
+          </div>,
+          document.body,
+        )}
 
       {/* Vinheta: mantém o centro legível */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(6,6,10,0.72)_100%)]" />

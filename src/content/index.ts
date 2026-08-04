@@ -1,3 +1,4 @@
+import { getGlossary } from "./glossary";
 import type { Locale } from "./locales";
 import { getProfile, type Profile } from "./profile";
 import { getProjects, type Project } from "./projects";
@@ -9,6 +10,8 @@ export type SiteContent = {
   profile: Profile;
   projects: Project[];
   ui: UiStrings;
+  /** Explicação de cada skill, aberta ao clicar na palavra do fundo. */
+  glossary: Record<string, string>;
 };
 
 /**
@@ -21,5 +24,6 @@ export function getContent(locale: Locale): SiteContent {
     profile: getProfile(locale),
     projects: getProjects(locale),
     ui: getUi(locale),
+    glossary: getGlossary(locale),
   };
 }
