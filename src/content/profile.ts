@@ -4,7 +4,7 @@
  *
  * Campos { en, "pt-br" } são as duas versões do site. NÃO precisam ser
  * traduções fiéis — escreva cada idioma como quiser (o título em inglês é
- * "AI Engineer" e em português é "Engenheiro de Software", por exemplo).
+ * "Full-Stack Engineer" e em português é "Desenvolvedor Full-Stack", por exemplo).
  * Campos sem { en, "pt-br" } são iguais nos dois idiomas.
  *
  * Substitua os campos marcados com TODO pelos seus dados reais.
@@ -58,13 +58,13 @@ const source = {
   },
 
   role: {
-    en: "AI Engineer",
-    "pt-br": "Engenheiro Full-Stack",
+    en: "Full-Stack Engineer",
+    "pt-br": "Desenvolvedor Full-Stack",
   },
 
   tagline: {
-    en: "React Native · Next.js · Node.js · AWS · LLMs",
-    "pt-br": "React Native · Next.js · Node.js · AWS · LLMs",
+    en: "React Native · Next.js · Node.js · AWS · AI",
+    "pt-br": "React Native · Next.js · Node.js · AWS · IA",
   },
 
   location: {
@@ -106,7 +106,7 @@ const source = {
     },
     {
       group: { en: "Backend & APIs", "pt-br": "Backend & APIs" },
-      items: ["Node.js", "NestJS", "REST", "GraphQL", "WebSockets", "WebRTC"],
+      items: ["Node.js", "NestJS", "API", "WebSockets"],
     },
     {
       group: { en: "Databases", "pt-br": "Bancos de dados" },
@@ -121,11 +121,11 @@ const source = {
         en: "Automation & Integrations",
         "pt-br": "Automação & Integrações",
       },
-      items: ["n8n", "Webhooks", "Jobs"],
+      items: ["Workflows", "Webhooks"],
     },
     {
       group: { en: "AI", "pt-br": "IA" },
-      items: ["LLMs", "RAG", "Prompt design"],
+      items: ["IA", "Prompt design"],
     },
   ],
 
@@ -136,7 +136,7 @@ const source = {
       stack: ["React Native", "Next.js", "Node.js", "PostgreSQL", "AWS"],
       role: {
         en: "Full-Stack Engineer",
-        "pt-br": "Engenheiro Full-Stack",
+        "pt-br": "Desenvolvedor Full-Stack",
       },
       period: {
         en: "2023 — present",

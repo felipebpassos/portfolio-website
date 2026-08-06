@@ -33,13 +33,13 @@ O site existe em duas URLs, ambas geradas estáticas no build:
 | `/pt-br` | português         |
 
 **As versões não são traduções automáticas.** Cada campo carrega os dois textos e
-eles podem dizer coisas diferentes — o `h1` é `AI Engineer` em inglês e
-`Engenheiro de Software` em português:
+eles podem dizer coisas diferentes — o `h1` é `Full-Stack Engineer` em inglês e
+`Desenvolvedor Full-Stack` em português:
 
 ```ts
 role: {
-  en: "AI Engineer",
-  "pt-br": "Engenheiro de Software",
+  en: "Full-Stack Engineer",
+  "pt-br": "Desenvolvedor Full-Stack",
 },
 ```
 

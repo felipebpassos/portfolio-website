@@ -24,6 +24,13 @@ type Tooltip = {
 const TOOLTIP_WIDTH = 288; // w-72
 const EDGE = 12;
 
+/**
+ * Raio em que a repulsão vai perdendo força até zerar em cima do cursor.
+ * Sem isso a direção do empurrão fica instável no centro e a palavra treme —
+ * o que torna palavras curtas ("API", "IA") quase impossíveis de acertar.
+ */
+const SETTLE = 70;
+
 /** Ruído determinístico: mesma posição em todo render, sem Math.random. */
 function noise(seed: number): number {
   const v = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
@@ -105,6 +112,10 @@ export default function SkillField({ skills }: { skills: string[] }) {
   useEffect(() => {
     selectedRef.current = tooltip?.index ?? null;
   }, [tooltip]);
+
+  // Idem para o hover: com o ponteiro em cima, a palavra congela onde está.
+  // Sem isso a repulsão empurra justamente o alvo que a pessoa está mirando.
+  const hoveredRef = useRef<number | null>(null);
 
   function openTooltip(index: number, el: HTMLElement) {
     const rect = el.getBoundingClientRect();
@@ -224,6 +235,15 @@ export default function SkillField({ skills }: { skills: string[] }) {
           continue;
         }
 
+        // Sob o ponteiro ela fica acesa e imóvel — de propósito sem mexer no
+        // transform: qualquer salto aqui a tiraria de baixo do cursor e o
+        // pointerleave devolveria tudo, virando piscada.
+        if (i === hoveredRef.current) {
+          el.style.opacity = "1";
+          el.style.textShadow = "0 0 20px rgba(125, 211, 252, 0.7)";
+          continue;
+        }
+
         const dx = center.x - cursor.x;
         const dy = center.y - cursor.y;
         const dist = Math.hypot(dx, dy);
@@ -238,8 +258,11 @@ export default function SkillField({ skills }: { skills: string[] }) {
           continue;
         }
 
-        // Repele levemente as palavras próximas ao cursor.
-        const push = (18 * t) / (dist || 1);
+        // Repele levemente as palavras próximas ao cursor, mas o empurrão
+        // decai até zero na aproximação final: a palavra se acomoda sob o
+        // ponteiro em vez de fugir dele.
+        const settle = Math.min(1, dist / SETTLE);
+        const push = (18 * t * settle) / (dist || 1);
         el.style.opacity = String(0.06 + 0.82 * t);
         el.style.transform = `translate3d(${dx * push}px, ${dy * push}px, 0) scale(${1 + 0.16 * t})`;
         el.style.textShadow = `0 0 ${16 * t}px rgba(125, 211, 252, ${0.5 * t})`;
@@ -308,7 +331,15 @@ export default function SkillField({ skills }: { skills: string[] }) {
               wordRefs.current[i] = el;
             }}
             onClick={(event) => openTooltip(i, event.currentTarget)}
-            className="pointer-events-auto block cursor-pointer font-mono text-[11px] tracking-[0.22em] whitespace-nowrap text-white uppercase opacity-[0.06] will-change-transform sm:text-xs"
+            onPointerEnter={() => {
+              hoveredRef.current = i;
+            }}
+            onPointerLeave={() => {
+              if (hoveredRef.current === i) hoveredRef.current = null;
+            }}
+            // O padding é área de acerto, não espaçamento: sem ele "API" tem
+            // uns 30px de alvo e a palavra escapa antes do clique.
+            className="pointer-events-auto block cursor-pointer px-3 py-2 font-mono text-[11px] tracking-[0.22em] whitespace-nowrap text-white uppercase opacity-[0.06] will-change-transform sm:text-xs"
           >
             {skills[i]}
           </button>

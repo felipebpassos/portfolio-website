@@ -57,7 +57,7 @@ const source: ProjectSource[] = [
       en: "Sports platform for athletes, clubs and event organizers",
       "pt-br": "Plataforma esportiva para atletas, clubes e organizadores de eventos",
     },
-    role: { en: "Full-Stack Engineer", "pt-br": "Engenheiro Full-Stack" },
+    role: { en: "Full-Stack Engineer", "pt-br": "Desenvolvedor Full-Stack" },
     kind: { en: "Product", "pt-br": "Produto" },
     summary: {
       en:
