@@ -141,6 +141,8 @@ export default function AskDock({
 
   return (
     <div
+      // data-skill-void: área reservada, sem palavras do SkillField atrás.
+      data-skill-void
       className="rise relative z-40 mt-9 w-[min(27rem,calc(100vw-2rem))] sm:mt-11"
       style={{ animationDelay: "280ms" }}
     >

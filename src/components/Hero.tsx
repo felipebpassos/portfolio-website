@@ -11,8 +11,11 @@ export default function Hero() {
     // pointer-events-none: nada aqui é clicável, e a caixa do título cobre
     // palavras do fundo que precisam receber clique (some em PT-BR, que tem
     // título mais largo).
+    // data-skill-void vai em cada peça, não no bloco: marcar o bloco inteiro
+    // reservaria também as faixas vazias ao lado da foto, que são justamente
+    // onde cabem palavras.
     <div className="pointer-events-none relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
-      <div className="rise relative mb-8 sm:mb-10">
+      <div data-skill-void className="rise relative mb-8 sm:mb-10">
         <div
           aria-hidden
           className="absolute -inset-6 rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.22),transparent_70%)] blur-xl"
@@ -28,6 +31,7 @@ export default function Hero() {
       </div>
 
       <h1
+        data-skill-void
         className="rise text-[clamp(2.4rem,8.5vw,5.5rem)] leading-[0.95] font-medium tracking-[-0.04em] text-balance text-white"
         style={{ animationDelay: "80ms" }}
       >
@@ -35,6 +39,7 @@ export default function Hero() {
       </h1>
 
       <p
+        data-skill-void
         className="rise mt-5 font-mono text-[clamp(0.55rem,2.7vw,0.95rem)] tracking-[0.1em] whitespace-nowrap text-white/45 sm:mt-6 sm:tracking-[0.14em]"
         style={{ animationDelay: "180ms" }}
       >

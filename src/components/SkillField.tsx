@@ -2,7 +2,7 @@
 
 import {
   useEffect,
-  useMemo,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 import { useContent } from "@/lib/content-context";
 
 type Point = { x: number; y: number };
+type Size = { w: number; h: number };
+type Rect = { left: number; top: number; right: number; bottom: number };
 
 /** Posição da tooltip. Ancora em top OU bottom, conforme o espaço na tela. */
 type Tooltip = {
@@ -31,38 +33,135 @@ const EDGE = 12;
  */
 const SETTLE = 70;
 
+/**
+ * Elementos da página que a nuvem não pode invadir: título, dock, cantos.
+ * Quem marca são os próprios componentes (Shell, Hero, AskDock), então a
+ * reserva acompanha o tamanho real do elemento — o título em PT-BR é bem mais
+ * largo que o em EN, e uma grade fixa não daria conta dos dois.
+ */
+const VOID_SELECTOR = "[data-skill-void]";
+
+/**
+ * Folga em volta de cada palavra: a flutuação sobe 9px, a repulsão empurra até
+ * ~18px e o hover ainda a aumenta em 16%. Sem essa margem a palavra fica fora
+ * da área reservada parada, mas entra nela em movimento.
+ */
+const WORD_GAP = 20;
+
 /** Ruído determinístico: mesma posição em todo render, sem Math.random. */
 function noise(seed: number): number {
   const v = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
   return v - Math.floor(v);
 }
 
+/** Distância entre duas caixas; 0 quando encostam ou se sobrepõem. */
+function gap(a: Rect, b: Rect): number {
+  const dx = Math.max(b.left - a.right, a.left - b.right, 0);
+  const dy = Math.max(b.top - a.bottom, a.top - b.bottom, 0);
+  return Math.hypot(dx, dy);
+}
+
+/** Distância da caixa até a borda mais próxima da tela. */
+function edgeGap(box: Rect, vw: number, vh: number): number {
+  return Math.min(box.left, box.top, vw - box.right, vh - box.bottom);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  // Em telas baixas o limite mínimo pode passar do máximo: centraliza.
+  if (min > max) return (min + max) / 2;
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Áreas ocupadas pela interface, em coordenadas de viewport. */
+function readVoids(): Rect[] {
+  return Array.from(document.querySelectorAll(VOID_SELECTOR))
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    })
+    .filter((r) => r.right > r.left && r.bottom > r.top);
+}
+
 /**
- * Distribui as palavras numa grade com jitter, pulando as células centrais
- * (onde ficam foto, título, subtítulo e o campo de pergunta).
+ * Espalha as palavras pelo espaço que sobra da interface.
  *
- * São 6x5 menos 6 células reservadas = 24 posições. Palavras além disso são
- * descartadas — manter content/profile.ts dentro desse limite.
+ * A grade com jitter só gera candidatas (10x8 = 80 para ~20 palavras); quem
+ * escolhe é uma dispersão gulosa: cada palavra fica na candidata livre mais
+ * distante de tudo que já existe — áreas reservadas, palavras já colocadas e
+ * as bordas da tela. Pegar simplesmente a primeira candidata livre amontoava
+ * as palavras no topo e deixava o resto da tela vazio.
+ *
+ * Palavra que não acha lugar sem sobreposição recebe null e não é exibida.
  */
-function buildLayout(count: number): Point[] {
-  const cols = 6;
-  const rows = 5;
-  const safeCols = [2, 3];
-  const safeRows = [1, 2, 3];
+function placeWords(
+  sizes: Size[],
+  voids: Rect[],
+  vw: number,
+  vh: number,
+): (Point | null)[] {
+  const cols = 10;
+  const rows = 8;
 
   const cells: Point[] = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      if (safeCols.includes(col) && safeRows.includes(row)) continue;
       const seed = row * cols + col;
       cells.push({
-        x: ((col + 0.5) / cols) * 100 + (noise(seed) - 0.5) * 9,
-        y: ((row + 0.5) / rows) * 100 + (noise(seed + 97) - 0.5) * 9,
+        x: ((col + 0.5 + (noise(seed) - 0.5) * 0.8) / cols) * vw,
+        y: ((row + 0.5 + (noise(seed + 97) - 0.5) * 0.8) / rows) * vh,
       });
     }
   }
 
-  return cells.slice(0, count);
+  const used = new Array<boolean>(cells.length).fill(false);
+  const taken: Rect[] = [];
+
+  return sizes.map((size) => {
+    const halfW = size.w / 2 + WORD_GAP;
+    const halfH = size.h / 2 + WORD_GAP;
+
+    let bestIndex = -1;
+    let bestPoint: Point | null = null;
+    let bestBox: Rect | null = null;
+    let bestScore = 0;
+
+    for (let i = 0; i < cells.length; i++) {
+      if (used[i]) continue;
+
+      // Encosta na borda em vez de vazar da tela.
+      const point = {
+        x: clamp(cells[i].x, halfW, vw - halfW),
+        y: clamp(cells[i].y, halfH, vh - halfH),
+      };
+      const box: Rect = {
+        left: point.x - halfW,
+        top: point.y - halfH,
+        right: point.x + halfW,
+        bottom: point.y + halfH,
+      };
+
+      // A folga até a borda entra sem WORD_GAP: a palavra encostada no limite
+      // do clamp ainda está a WORD_GAP da borda, e zerar aqui a eliminaria.
+      let score = edgeGap(box, vw, vh) + WORD_GAP;
+
+      for (const other of voids) score = Math.min(score, gap(box, other));
+      for (const other of taken) score = Math.min(score, gap(box, other));
+
+      // score 0 = sobreposta ou encostada em algo.
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+        bestPoint = point;
+        bestBox = box;
+      }
+    }
+
+    if (bestIndex < 0 || !bestPoint || !bestBox) return null;
+
+    used[bestIndex] = true;
+    taken.push(bestBox);
+    return bestPoint;
+  });
 }
 
 /**
@@ -101,10 +200,65 @@ export default function SkillField({ skills }: { skills: string[] }) {
     () => false,
   );
 
-  const layout = useMemo(
-    () => (interactive ? buildLayout(skills.length) : []),
-    [interactive, skills.length],
-  );
+  // Posição de cada palavra; null = não sobrou célula livre, palavra escondida.
+  // Fica em ref, não em estado: quem escreve left/top é o efeito, direto no
+  // DOM, e assim medir e reposicionar não custa um render em cascata.
+  const wrapRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const spotsRef = useRef<(Point | null)[]>([]);
+
+  // O loop de animação publica aqui como remedir os centros: depois de mover
+  // as palavras, as posições antigas não valem mais.
+  const remeasureRef = useRef<(() => void) | null>(null);
+
+  // Posiciona antes da pintura: as palavras nascem medidas, sem piscar num
+  // lugar errado. Como o botão é whitespace-nowrap, a largura medida não
+  // depende de onde ele está — dá para medir e reposicionar no mesmo passo.
+  useLayoutEffect(() => {
+    if (!interactive) return;
+
+    const place = () => {
+      const sizes: Size[] = skills.map((_, i) => {
+        const el = wordRefs.current[i];
+        return el ? { w: el.offsetWidth, h: el.offsetHeight } : { w: 0, h: 0 };
+      });
+
+      const spots = placeWords(
+        sizes,
+        readVoids(),
+        window.innerWidth,
+        window.innerHeight,
+      );
+      spotsRef.current = spots;
+
+      spots.forEach((spot, i) => {
+        const el = wrapRefs.current[i];
+        if (!el) return;
+        el.style.visibility = spot ? "visible" : "hidden";
+        if (spot) {
+          el.style.left = `${spot.x}px`;
+          el.style.top = `${spot.y}px`;
+        }
+      });
+
+      remeasureRef.current?.();
+    };
+
+    place();
+
+    // A fonte mono só chega depois do primeiro paint: até lá as larguras são
+    // as da fonte de fallback e a folga sai errada por alguns pixels.
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive) place();
+    });
+
+    // Redimensionar move o título e os cantos: as reservas mudam de tamanho.
+    window.addEventListener("resize", place);
+    return () => {
+      alive = false;
+      window.removeEventListener("resize", place);
+    };
+  }, [interactive, skills]);
 
   // O loop de animação lê a seleção por ref: ele roda a 60fps e não pode
   // ser reiniciado a cada clique.
@@ -174,15 +328,18 @@ export default function SkillField({ skills }: { skills: string[] }) {
 
     let centers: Point[] = [];
     const measure = () => {
-      centers = wordRefs.current.map((el) => {
-        if (!el) return { x: -9999, y: -9999 };
+      centers = wordRefs.current.map((el, i) => {
+        // Palavra sem lugar está escondida: fora do alcance do cursor.
+        if (!el || !spotsRef.current[i]) return { x: -9999, y: -9999 };
         const r = el.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       });
     };
 
+    // Quem remede no resize é o efeito de posicionamento, logo depois de
+    // recolocar as palavras — medir antes disso pegaria as posições antigas.
     measure();
-    window.addEventListener("resize", measure);
+    remeasureRef.current = measure;
 
     // Alvo do ponteiro. Sem mouse (touch, ou antes do primeiro movimento),
     // um ponto virtual passeia pela tela em uma curva de Lissajous.
@@ -273,10 +430,10 @@ export default function SkillField({ skills }: { skills: string[] }) {
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("resize", measure);
+      remeasureRef.current = null;
       window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [layout, interactive]);
+  }, [interactive]);
 
   return (
     <div
@@ -311,20 +468,23 @@ export default function SkillField({ skills }: { skills: string[] }) {
         }}
       />
 
-      {/* Skills */}
-      {layout.map((point, i) => (
+      {/* Skills. Nascem invisíveis em 0,0: left/top e visibility vêm do efeito
+          de posicionamento, que precisa medir a palavra já renderizada. */}
+      {(interactive ? skills : []).map((skill, i) => (
         <div
-          key={skills[i]}
+          key={skill}
+          ref={(el) => {
+            wrapRefs.current[i] = el;
+          }}
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={{
-            left: `${point.x}%`,
-            top: `${point.y}%`,
+            visibility: "hidden",
             animation: `float-word ${9 + noise(i) * 7}s ease-in-out ${noise(i + 41) * -8}s infinite`,
           }}
         >
           <button
             type="button"
-            // Fora da ordem de tabulação: são 24 palavras decorativas antes
+            // Fora da ordem de tabulação: são 20 palavras decorativas antes
             // do conteúdo real, e o campo só existe onde há mouse.
             tabIndex={-1}
             ref={(el) => {
@@ -341,7 +501,7 @@ export default function SkillField({ skills }: { skills: string[] }) {
             // uns 30px de alvo e a palavra escapa antes do clique.
             className="pointer-events-auto block cursor-pointer px-3 py-2 font-mono text-[11px] tracking-[0.22em] whitespace-nowrap text-white uppercase opacity-[0.06] will-change-transform sm:text-xs"
           >
-            {skills[i]}
+            {skill}
           </button>
         </div>
       ))}

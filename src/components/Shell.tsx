@@ -39,8 +39,10 @@ export default function Shell({ content }: { content: SiteContent }) {
       <main className="relative h-[100dvh] overflow-hidden">
         <SkillField skills={skillCloud} />
 
+        {/* data-skill-void marca as áreas que o SkillField não pode ocupar:
+            ele mede esses elementos e joga as palavras para fora deles. */}
         <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-5 py-5 sm:px-8 sm:py-7">
-          <div className="pointer-events-auto flex items-center gap-2.5">
+          <div data-skill-void className="pointer-events-auto flex items-center gap-2.5">
             <Image
               src="/me.png"
               alt={profile.name}
@@ -68,7 +70,10 @@ export default function Shell({ content }: { content: SiteContent }) {
             </div>
           </div>
 
-          <nav className="pointer-events-auto flex items-center gap-4 font-mono text-[10px] tracking-[0.18em] text-white/40 uppercase">
+          <nav
+            data-skill-void
+            className="pointer-events-auto flex items-center gap-4 font-mono text-[10px] tracking-[0.18em] text-white/40 uppercase"
+          >
             <span className="hidden items-center gap-2 sm:flex">
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]" />
               {ui.available}
@@ -91,6 +96,7 @@ export default function Shell({ content }: { content: SiteContent }) {
             botão do Portfolio precisa na mesma linha. */}
         <nav
           aria-label={profile.name}
+          data-skill-void
           className="fixed bottom-5 left-4 z-40 flex h-11 items-center gap-3 font-mono text-[10px] tracking-[0.14em] text-white/55 uppercase sm:bottom-8 sm:left-8 sm:h-auto sm:gap-4 sm:rounded-full sm:border sm:border-white/10 sm:bg-black/45 sm:px-5 sm:py-2.5 sm:tracking-[0.18em] sm:backdrop-blur-xl"
         >
           <a
@@ -122,6 +128,7 @@ export default function Shell({ content }: { content: SiteContent }) {
         <button
           type="button"
           onClick={() => setPortfolioOpen(true)}
+          data-skill-void
           className="group fixed right-4 bottom-5 z-40 flex items-center gap-3 rounded-full border border-white/10 bg-black/45 py-2.5 pr-3 pl-5 backdrop-blur-xl transition hover:border-white/25 sm:right-8 sm:bottom-8"
         >
           <span className="font-mono text-[10px] tracking-[0.2em] text-white/70 uppercase transition group-hover:text-white">

@@ -38,10 +38,6 @@ export type UiStrings = {
     previous: string;
     next: string;
     hint: string;
-    viewDetails: string;
-    back: string;
-    highlights: string;
-    stack: string;
   };
 };
 
@@ -79,11 +75,7 @@ const strings: Record<Locale, UiStrings> = {
       close: "Close · Esc",
       previous: "Previous project",
       next: "Next project",
-      hint: "Scroll or use arrows · click a card for details",
-      viewDetails: "View details",
-      back: "Back",
-      highlights: "What I built",
-      stack: "Stack",
+      hint: "Scroll or use arrows",
     },
   },
 
@@ -120,11 +112,7 @@ const strings: Record<Locale, UiStrings> = {
       close: "Fechar · Esc",
       previous: "Projeto anterior",
       next: "Próximo projeto",
-      hint: "Role ou use as setas · clique num card para ver os detalhes",
-      viewDetails: "Ver detalhes",
-      back: "Voltar",
-      highlights: "O que eu construí",
-      stack: "Stack",
+      hint: "Role ou use as setas",
     },
   },
 };

@@ -95,9 +95,11 @@ const source = {
    * Grupos de skills. Os nomes das tecnologias não mudam de idioma —
    * só o rótulo do grupo. A lista achatada alimenta o campo reativo do hero.
    *
-   * ATENÇÃO: o campo do hero tem 24 posições (grade 6x5 menos as 6 células
-   * centrais reservadas ao título). O que passar de 24 é descartado em
-   * silêncio — ver buildLayout em components/SkillField.tsx.
+   * ATENÇÃO: o campo do hero distribui as palavras numa grade 7x6 = 42
+   * candidatas, descartando as que cairiam sobre o título, o dock ou os
+   * cantos. Sobram ~20 lugares numa tela grande e menos em telas menores;
+   * palavra sem lugar simplesmente não aparece — ver placeWords em
+   * components/SkillField.tsx.
    */
   skills: [
     {

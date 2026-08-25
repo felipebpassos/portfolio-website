@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useRef } from "react";
 
 import type { Project } from "@/content/projects";
 import { fill } from "@/content/ui";
@@ -10,7 +11,6 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
   const { projects, ui } = useContent();
   const t = ui.work;
   const trackRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState<Project | null>(null);
 
   const scrollByCard = useCallback((direction: 1 | -1) => {
     const track = trackRef.current;
@@ -20,21 +20,19 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
     track.scrollBy({ left: step * direction, behavior: "smooth" });
   }, []);
 
-  // Esc fecha o detalhe, depois o overlay. Setas navegam entre os cards.
+  // Esc fecha o overlay. Setas navegam entre os cards.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (selected) setSelected(null);
-        else onClose();
+        onClose();
         return;
       }
-      if (selected) return;
       if (event.key === "ArrowRight") scrollByCard(1);
       if (event.key === "ArrowLeft") scrollByCard(-1);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, scrollByCard, selected]);
+  }, [onClose, scrollByCard]);
 
   // Trava o scroll da página enquanto o overlay está aberto.
   useEffect(() => {
@@ -48,7 +46,7 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
   // Roda do mouse (vertical) vira scroll horizontal no track.
   useEffect(() => {
     const track = trackRef.current;
-    if (!track || selected) return;
+    if (!track) return;
 
     const onWheel = (event: WheelEvent) => {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
@@ -58,7 +56,7 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
 
     track.addEventListener("wheel", onWheel, { passive: false });
     return () => track.removeEventListener("wheel", onWheel);
-  }, [selected]);
+  }, []);
 
   return (
     <div
@@ -87,15 +85,10 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
 
       <div
         ref={trackRef}
-        className="scrollbar-none flex min-h-0 flex-1 snap-x snap-mandatory items-center gap-6 overflow-x-auto overflow-y-hidden px-5 pb-6 sm:px-10"
+        className="scrollbar-none flex min-h-0 flex-1 snap-x snap-mandatory items-center gap-8 overflow-x-auto overflow-y-hidden px-5 pb-6 sm:px-10"
       >
         {projects.map((project, i) => (
-          <ProjectCard
-            key={project.slug}
-            project={project}
-            index={i}
-            onSelect={() => setSelected(project)}
-          />
+          <ProjectCard key={project.slug} project={project} index={i} />
         ))}
         <div aria-hidden className="w-1 shrink-0" />
       </div>
@@ -119,61 +112,56 @@ export default function PortfolioOverlay({ onClose }: { onClose: () => void }) {
         </button>
         <span>{t.hint}</span>
       </footer>
-
-      {selected && (
-        <ProjectDetail project={selected} onBack={() => setSelected(null)} />
-      )}
     </div>
   );
 }
 
-function ProjectCard({
-  project,
-  index,
-  onSelect,
-}: {
-  project: Project;
-  index: number;
-  onSelect: () => void;
-}) {
-  const t = useContent().ui.work;
+function ProjectCard({ project, index }: { project: Project; index: number }) {
+  const href = project.links?.[0]?.href;
+  const Wrapper = href ? "a" : "div";
 
   return (
-    <button
+    <Wrapper
       data-card
-      type="button"
-      onClick={onSelect}
-      className="group relative flex h-[min(30rem,62vh)] w-[min(22rem,78vw)] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-3xl border border-white/10 bg-ink-soft p-6 text-left transition duration-300 hover:-translate-y-1 hover:border-white/25 focus-visible:-translate-y-1 focus-visible:border-white/40 focus-visible:outline-none sm:w-[min(26rem,60vw)]"
+      {...(href ? { href, target: "_blank", rel: "noreferrer noopener" } : {})}
+      className="group flex w-[min(19rem,78vw)] shrink-0 snap-center flex-col gap-4 sm:w-[min(22rem,42vw)]"
     >
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-45 transition-opacity duration-500 group-hover:opacity-70"
-        style={{
-          background: `radial-gradient(120% 80% at 20% 0%, ${project.accent[0]}55, transparent 60%), radial-gradient(110% 90% at 90% 20%, ${project.accent[1]}40, transparent 65%)`,
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent"
-      />
+      <span className="font-mono text-xs tracking-[0.2em] text-white/35">
+        {String(index + 1).padStart(2, "0")}
+      </span>
 
-      <div className="relative">
-        <div className="mb-auto flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase">
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <span className="h-px w-4 bg-white/20" />
-          <span>{project.kind}</span>
-          <span className="ml-auto">{project.year}</span>
-        </div>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-ink-soft transition duration-300 group-hover:-translate-y-1 group-hover:border-white/25">
+        {project.image ? (
+          <Image
+            src={project.image}
+            alt={project.title}
+            fill
+            sizes="(min-width: 640px) 42vw, 78vw"
+            className="object-cover grayscale contrast-[1.05] transition duration-500 ease-out group-hover:scale-[1.06] group-hover:grayscale-0"
+          />
+        ) : (
+          <div
+            aria-hidden
+            className="absolute inset-0 grayscale contrast-[1.05] transition duration-500 ease-out group-hover:scale-[1.06] group-hover:grayscale-0"
+            style={{
+              background: `radial-gradient(120% 90% at 15% 10%, ${project.accent[0]}80, transparent 60%), radial-gradient(110% 100% at 95% 90%, ${project.accent[1]}70, transparent 65%), #0c0c10`,
+            }}
+          />
+        )}
+      </div>
 
-        <h3 className="mt-4 text-2xl leading-tight font-medium tracking-[-0.02em] text-white">
+      <div>
+        <h3 className="text-lg leading-tight font-medium tracking-[-0.01em] text-white">
           {project.title}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-white/55">
-          {project.subtitle}
+        {/* Quatro linhas fixas: sem isso, um texto mais curto encolhe o card e
+            desalinha a fileira, porque o track centraliza cada card. */}
+        <p className="mt-2 line-clamp-4 min-h-[4lh] text-sm leading-relaxed text-white/55">
+          {project.blurb}
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {project.stack.slice(0, 4).map((tech) => (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {project.stack.slice(0, 5).map((tech) => (
             <span
               key={tech}
               className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[10px] text-white/45"
@@ -182,117 +170,7 @@ function ProjectCard({
             </span>
           ))}
         </div>
-
-        <span className="mt-5 inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase transition group-hover:text-accent">
-          {t.viewDetails} →
-        </span>
       </div>
-    </button>
-  );
-}
-
-function ProjectDetail({
-  project,
-  onBack,
-}: {
-  project: Project;
-  onBack: () => void;
-}) {
-  const t = useContent().ui.work;
-
-  return (
-    <div className="fade-in absolute inset-0 z-10 overflow-y-auto bg-ink/97 backdrop-blur-2xl">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 opacity-35"
-        style={{
-          background: `radial-gradient(80% 100% at 30% 0%, ${project.accent[0]}55, transparent 70%), radial-gradient(70% 100% at 80% 0%, ${project.accent[1]}45, transparent 70%)`,
-        }}
-      />
-
-      <div className="relative mx-auto w-full max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-full border border-white/10 px-4 py-1.5 font-mono text-[10px] tracking-[0.2em] text-white/55 uppercase transition hover:border-white/30 hover:text-white"
-        >
-          ← {t.back}
-        </button>
-
-        <div className="slide-up mt-8">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-            <span>{project.kind}</span>
-            <span className="h-px w-4 bg-white/20" />
-            <span>{project.year}</span>
-            <span className="h-px w-4 bg-white/20" />
-            <span>{project.role}</span>
-          </div>
-
-          <h3 className="mt-4 text-[clamp(2rem,6vw,3.5rem)] leading-[1.02] font-medium tracking-[-0.035em] text-white">
-            {project.title}
-          </h3>
-          <p className="mt-3 text-lg leading-relaxed text-white/60 text-balance">
-            {project.subtitle}
-          </p>
-
-          {project.metrics && project.metrics.length > 0 && (
-            <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] sm:grid-cols-3">
-              {project.metrics.map((metric) => (
-                <div key={metric.label} className="bg-ink px-4 py-4">
-                  <dt className="font-mono text-[10px] tracking-[0.18em] text-white/35 uppercase">
-                    {metric.label}
-                  </dt>
-                  <dd className="mt-1.5 text-sm text-white">{metric.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-
-          <p className="mt-8 leading-relaxed text-white/70">{project.summary}</p>
-
-          <h4 className="mt-10 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-            {t.highlights}
-          </h4>
-          <ul className="mt-4 space-y-3">
-            {project.highlights.map((highlight) => (
-              <li key={highlight} className="flex gap-3 text-white/70">
-                <span aria-hidden className="mt-2 size-1 shrink-0 rounded-full bg-accent" />
-                <span className="leading-relaxed">{highlight}</span>
-              </li>
-            ))}
-          </ul>
-
-          <h4 className="mt-10 font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
-            {t.stack}
-          </h4>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {project.stack.map((tech) => (
-              <span
-                key={tech}
-                className="rounded-full border border-white/10 px-3 py-1 font-mono text-xs text-white/55"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-
-          {project.links && project.links.length > 0 && (
-            <div className="mt-10 flex flex-wrap gap-3 border-t border-white/[0.07] pt-8">
-              {project.links.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/75 transition hover:border-white/35 hover:text-white"
-                >
-                  {link.label} ↗
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    </Wrapper>
   );
 }
