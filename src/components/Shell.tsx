@@ -82,10 +82,12 @@ export default function Shell({ content }: { content: SiteContent }) {
           </nav>
         </header>
 
-        {/* Sobe um pouco quando o chat abre, para o painel caber abaixo. */}
+        {/* Sobe um pouco quando o chat abre, para o painel caber abaixo. No
+            mobile o chat vira tela cheia, então não precisa (e o transform aqui
+            quebraria o position:fixed do painel). */}
         <div
           className={`flex h-full flex-col items-center justify-center transition-transform duration-500 ease-out ${
-            chatOpen ? "-translate-y-[7dvh]" : ""
+            chatOpen ? "sm:-translate-y-[12dvh]" : ""
           }`}
         >
           <Hero />

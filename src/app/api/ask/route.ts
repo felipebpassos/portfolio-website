@@ -18,8 +18,11 @@ const profile = getProfile(DEFAULT_LOCALE);
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.6-flash";
 const MAX_TURNS = 4;
+/** Retentativas quando o modelo responde 503 (sobrecarga passageira). */
+const MAX_RETRIES = 2;
+const RETRY_BASE_MS = 600;
 const MAX_MESSAGE_CHARS = 800;
 const MAX_HISTORY = 16;
 
@@ -70,6 +73,18 @@ function isQuotaError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /RESOURCE_EXHAUSTED|quota|429/i.test(message);
 }
+
+/**
+ * Modelo sobrecarregado do lado do Google (503 UNAVAILABLE). É passageiro:
+ * vale retentar algumas vezes e, se persistir, pedir para tentar mais tarde.
+ */
+function isOverloadError(error: unknown): boolean {
+  if ((error as { status?: number })?.status === 503) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b503\b|UNAVAILABLE|overloaded|high demand/i.test(message);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const submitContact: FunctionDeclaration = {
   name: "submit_contact",
@@ -213,26 +228,40 @@ export async function POST(request: Request) {
 
       try {
         for (let turn = 0; turn < MAX_TURNS; turn++) {
-          const result = await ai.models.generateContentStream({
-            model: MODEL,
-            contents,
-            config: {
-              systemInstruction: buildSystemInstruction(locale),
-              temperature: 0.6,
-              maxOutputTokens: 700,
-              tools: [{ functionDeclarations: [submitContact] }],
-            },
-          });
-
           let text = "";
-          const calls: FunctionCall[] = [];
+          let calls: FunctionCall[] = [];
 
-          for await (const chunk of result) {
-            if (chunk.text) {
-              text += chunk.text;
-              send({ type: "text", value: chunk.text });
+          // Enquanto nada foi transmitido, um 503 é recuperável: espera e tenta
+          // de novo. Depois do primeiro chunk não dá — o cliente já mostrou texto.
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const result = await ai.models.generateContentStream({
+                model: MODEL,
+                contents,
+                config: {
+                  systemInstruction: buildSystemInstruction(locale),
+                  temperature: 0.6,
+                  maxOutputTokens: 700,
+                  tools: [{ functionDeclarations: [submitContact] }],
+                },
+              });
+
+              for await (const chunk of result) {
+                if (chunk.text) {
+                  text += chunk.text;
+                  send({ type: "text", value: chunk.text });
+                }
+                if (chunk.functionCalls?.length) calls.push(...chunk.functionCalls);
+              }
+              break;
+            } catch (error) {
+              if (attempt < MAX_RETRIES && text === "" && isOverloadError(error)) {
+                calls = [];
+                await sleep(RETRY_BASE_MS * 2 ** attempt);
+                continue;
+              }
+              throw error;
             }
-            if (chunk.functionCalls?.length) calls.push(...chunk.functionCalls);
           }
 
           const modelParts: Part[] = [];
@@ -256,7 +285,12 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         console.error("[ask] generation failed", error);
-        send({ type: "error", code: isQuotaError(error) ? "quota" : "unavailable" });
+        const code = isQuotaError(error)
+          ? "quota"
+          : isOverloadError(error)
+            ? "busy"
+            : "unavailable";
+        send({ type: "error", code });
       } finally {
         controller.close();
       }

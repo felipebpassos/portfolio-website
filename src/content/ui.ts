@@ -36,6 +36,8 @@ export type UiStrings = {
     dailyLimit: string;
     /** Cota diária da API do Gemini esgotada — não adianta insistir hoje. */
     quotaOver: string;
+    /** Modelo sobrecarregado (503) — passageiro, tentar de novo em instantes. */
+    busy: string;
   };
   work: {
     title: string;
@@ -78,6 +80,7 @@ const strings: Record<Locale, UiStrings> = {
       dailyLimit: "That's the question limit for today. Email {email}.",
       quotaOver:
         "The assistant is out of credit for today. Email {email} and I'll reply.",
+      busy: "The assistant is briefly overloaded. Try again in a moment.",
     },
     work: {
       title: "Selected work",
@@ -119,6 +122,7 @@ const strings: Record<Locale, UiStrings> = {
       dailyLimit: "Esse é o limite de perguntas por hoje. Escreva para {email}.",
       quotaOver:
         "O assistente ficou sem crédito por hoje. Escreva para {email} que eu respondo.",
+      busy: "O assistente está sobrecarregado agora. Tente de novo em instantes.",
     },
     work: {
       title: "Trabalhos selecionados",

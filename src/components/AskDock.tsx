@@ -11,6 +11,52 @@ type Message = {
   contactSent?: boolean;
 };
 
+/**
+ * O modelo às vezes devolve markdown (`**assim**`). Sem tratar, os asteriscos
+ * aparecem crus. Aqui cobrimos só o básico inline — negrito, itálico, código e
+ * link — que é o que ele usa numa resposta de duas a quatro frases.
+ */
+const INLINE = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\))/g;
+
+function renderRich(text: string) {
+  return text.split(INLINE).map((part, i) => {
+    const bold = /^\*\*([^*\n]+)\*\*$/.exec(part);
+    if (bold) {
+      return (
+        <strong key={i} className="font-semibold text-white/90">
+          {bold[1]}
+        </strong>
+      );
+    }
+    const code = /^`([^`\n]+)`$/.exec(part);
+    if (code) {
+      return (
+        <code
+          key={i}
+          className="rounded bg-white/10 px-1 py-0.5 font-mono text-[0.85em]"
+        >
+          {code[1]}
+        </code>
+      );
+    }
+    const link = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/.exec(part);
+    if (link) {
+      return (
+        <a
+          key={i}
+          href={link[2]}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-accent underline underline-offset-2 hover:text-white"
+        >
+          {link[1]}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 export default function AskDock({
   /** Avisa o Shell que o painel abriu, para ele subir o hero e dar espaço. */
   onOpenChange,
@@ -29,6 +75,7 @@ export default function AskDock({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -49,6 +96,19 @@ export default function AskDock({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  // Clique fora do dock (campo + painel) fecha, como o X e o Esc.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
   /**
    * A API manda código, não frase: o texto visível sai daqui, no idioma da
    * página. Código desconhecido cai no genérico.
@@ -61,6 +121,8 @@ export default function AskDock({
         return fill(t.dailyLimit, { email: profile.email });
       case "quota":
         return fill(t.quotaOver, { email: profile.email });
+      case "busy":
+        return t.busy;
       default:
         return t.somethingWrong;
     }
@@ -175,9 +237,16 @@ export default function AskDock({
 
   return (
     <div
+      ref={rootRef}
       // data-skill-void: área reservada, sem palavras do SkillField atrás.
       data-skill-void
-      className="rise relative z-40 mt-9 w-[min(27rem,calc(100vw-2rem))] sm:mt-11"
+      className={
+        showPanel
+          ? // No mobile o chat toma a tela inteira; a partir de sm volta a ser
+            // o dropdown ancorado no campo.
+            "rise fixed inset-0 z-50 flex w-full flex-col gap-3 bg-black/80 p-3 backdrop-blur-xl sm:relative sm:inset-auto sm:z-40 sm:mt-11 sm:block sm:w-[min(27rem,calc(100vw-2rem))] sm:gap-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+          : "rise relative z-40 mt-9 w-[min(27rem,calc(100vw-2rem))] sm:mt-11"
+      }
       style={{ animationDelay: "280ms" }}
     >
       <form
@@ -210,7 +279,7 @@ export default function AskDock({
       </form>
 
       {showPanel && (
-        <div className="slide-down absolute inset-x-0 top-full mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/55 text-left shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+        <div className="slide-down flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/55 text-left shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:absolute sm:inset-x-0 sm:top-full sm:mt-3 sm:block sm:flex-none">
           <header className="flex items-center justify-between border-b border-white/[0.07] px-4 py-2.5">
             <span className="font-mono text-[10px] tracking-[0.2em] text-white/35 uppercase">
               {fill(t.header, { name: firstName })}
@@ -228,7 +297,7 @@ export default function AskDock({
           <div
             ref={logRef}
             aria-live="polite"
-            className="scrollbar-none max-h-[min(20rem,34dvh)] space-y-3 overflow-y-auto px-4 py-4 text-sm"
+            className="scrollbar-none min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm sm:max-h-[min(13rem,26dvh)] sm:flex-none"
           >
             {messages.length === 0 && (
               <div className="space-y-2">
@@ -260,7 +329,7 @@ export default function AskDock({
               ) : (
                 <div key={i} className="text-white/70">
                   <p className="leading-relaxed whitespace-pre-wrap">
-                    {message.text}
+                    {renderRich(message.text)}
                     {busy && i === messages.length - 1 && (
                       <span className="blink ml-0.5 inline-block text-accent">▍</span>
                     )}
