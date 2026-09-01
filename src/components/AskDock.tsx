@@ -49,6 +49,23 @@ export default function AskDock({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  /**
+   * A API manda código, não frase: o texto visível sai daqui, no idioma da
+   * página. Código desconhecido cai no genérico.
+   */
+  function messageFor(code?: string): string {
+    switch (code) {
+      case "rate_minute":
+        return t.tooFast;
+      case "rate_day":
+        return fill(t.dailyLimit, { email: profile.email });
+      case "quota":
+        return fill(t.quotaOver, { email: profile.email });
+      default:
+        return t.somethingWrong;
+    }
+  }
+
   async function ask(question: string) {
     const trimmed = question.trim();
     if (!trimmed || busy) return;
@@ -82,13 +99,16 @@ export default function AskDock({
       });
 
       if (!response.ok || !response.body) {
-        const detail = await response.json().catch(() => null);
-        throw new Error(detail?.error ?? t.requestFailed);
+        const detail = (await response.json().catch(() => null)) as {
+          code?: string;
+        } | null;
+        throw new Error(detail?.code ? messageFor(detail.code) : t.requestFailed);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let failed = false;
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -100,7 +120,12 @@ export default function AskDock({
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          let event: { type: string; value?: string; ok?: boolean };
+          let event: {
+            type: string;
+            value?: string;
+            ok?: boolean;
+            code?: string;
+          };
           try {
             event = JSON.parse(line);
           } catch {
@@ -113,16 +138,25 @@ export default function AskDock({
           } else if (event.type === "contact") {
             patchLast((m) => ({ ...m, contactSent: event.ok === true }));
           } else if (event.type === "error") {
-            setError(event.value ?? t.somethingWrong);
+            failed = true;
+            setError(messageFor(event.code));
           }
         }
       }
 
-      patchLast((m) =>
-        m.text.trim()
-          ? m
-          : { ...m, text: fill(t.noAnswer, { email: profile.email }) },
-      );
+      if (failed) {
+        // A bolha vazia não diz nada e ainda soaria como resposta: quem explica
+        // o que houve é a linha de erro logo abaixo.
+        setMessages((prev) =>
+          prev.at(-1)?.text.trim() ? prev : prev.slice(0, -1),
+        );
+      } else {
+        patchLast((m) =>
+          m.text.trim()
+            ? m
+            : { ...m, text: fill(t.noAnswer, { email: profile.email }) },
+        );
+      }
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setMessages(history);

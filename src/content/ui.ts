@@ -30,6 +30,12 @@ export type UiStrings = {
     requestFailed: string;
     somethingWrong: string;
     unreachable: string;
+    /** Freio do próprio site: muitas perguntas em pouco tempo. */
+    tooFast: string;
+    /** Freio do próprio site: cota de perguntas do visitante no dia. */
+    dailyLimit: string;
+    /** Cota diária da API do Gemini esgotada — não adianta insistir hoje. */
+    quotaOver: string;
   };
   work: {
     title: string;
@@ -68,6 +74,10 @@ const strings: Record<Locale, UiStrings> = {
       requestFailed: "Request failed.",
       somethingWrong: "Something went wrong.",
       unreachable: "Could not reach the assistant.",
+      tooFast: "One question at a time — try again in a minute.",
+      dailyLimit: "That's the question limit for today. Email {email}.",
+      quotaOver:
+        "The assistant is out of credit for today. Email {email} and I'll reply.",
     },
     work: {
       title: "Selected work",
@@ -105,6 +115,10 @@ const strings: Record<Locale, UiStrings> = {
       requestFailed: "A requisição falhou.",
       somethingWrong: "Algo deu errado.",
       unreachable: "Não consegui falar com o assistente.",
+      tooFast: "Uma pergunta de cada vez — tente de novo em um minuto.",
+      dailyLimit: "Esse é o limite de perguntas por hoje. Escreva para {email}.",
+      quotaOver:
+        "O assistente ficou sem crédito por hoje. Escreva para {email} que eu respondo.",
     },
     work: {
       title: "Trabalhos selecionados",

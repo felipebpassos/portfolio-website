@@ -28,18 +28,47 @@ type ClientMessage = { role: "user" | "model"; text: string };
 /**
  * Rate limit em memória. Some entre cold starts do serverless — é um freio
  * contra abuso casual, não uma garantia. Para algo sério, trocar por Upstash.
+ *
+ * Os números são baixos de propósito: o nível gratuito da API do Gemini tem
+ * cota DIÁRIA (algumas centenas de requisições, ver
+ * ai.google.dev/gemini-api/docs/rate-limits). Sem o teto por dia, um único
+ * visitante insistente esgota a cota e o chat morre para todo mundo até o dia
+ * seguinte. Se um dia migrar para o tier pago, dá para afrouxar os dois.
  */
 const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 12;
+const MAX_PER_WINDOW = 4;
+const DAY_MS = 24 * 60 * 60_000;
+const MAX_PER_DAY = 20;
 const hits = new Map<string, number[]>();
 
-function rateLimited(ip: string): boolean {
+/** Devolve qual teto foi batido, ou null quando a pergunta pode passar. */
+function rateLimited(ip: string): "rate_minute" | "rate_day" | null {
   const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  recent.push(now);
-  hits.set(ip, recent);
+  const recent = (hits.get(ip) ?? []).filter((t) => now - t < DAY_MS);
+  // Zera antes de guardar: a entrada deste IP sobrevive à faxina de memória.
   if (hits.size > 5_000) hits.clear();
-  return recent.length > MAX_PER_WINDOW;
+  hits.set(ip, recent);
+
+  // Pergunta barrada não conta: senão quem martela o endpoint prorroga o
+  // próprio castigo para sempre.
+  if (recent.length >= MAX_PER_DAY) return "rate_day";
+  if (recent.filter((t) => now - t < WINDOW_MS).length >= MAX_PER_WINDOW) {
+    return "rate_minute";
+  }
+
+  recent.push(now);
+  return null;
+}
+
+/**
+ * Cota estourada do lado do Google — o erro que aparece quando o free tier
+ * acaba. Vale uma mensagem própria: não é falha do site nem culpa de quem
+ * perguntou, e insistir não resolve.
+ */
+function isQuotaError(error: unknown): boolean {
+  if ((error as { status?: number })?.status === 429) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /RESOURCE_EXHAUSTED|quota|429/i.test(message);
 }
 
 const submitContact: FunctionDeclaration = {
@@ -129,22 +158,29 @@ function toContents(messages: ClientMessage[]): Content[] {
     }));
 }
 
+/**
+ * O cliente traduz `code`; `error` fica em inglês só para log e para quem
+ * chamar a API na mão. Mandar a frase pronta daqui vazaria inglês numa página
+ * em PT-BR — os textos visíveis moram em content/ui.ts.
+ */
+function fail(code: string, error: string, status: number) {
+  return Response.json({ code, error }, { status });
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return Response.json(
-      { error: "GEMINI_API_KEY is not configured." },
-      { status: 500 },
-    );
+    return fail("unavailable", "GEMINI_API_KEY is not configured.", 500);
   }
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (rateLimited(ip)) {
-    return Response.json(
-      { error: "Too many questions in a short time. Try again in a minute." },
-      { status: 429 },
-    );
+  const limit = rateLimited(ip);
+  if (limit === "rate_minute") {
+    return fail(limit, "Too many questions in a short time.", 429);
+  }
+  if (limit === "rate_day") {
+    return fail(limit, "Daily question limit reached for this visitor.", 429);
   }
 
   let messages: ClientMessage[];
@@ -159,12 +195,12 @@ export async function POST(request: Request) {
       locale = body.locale;
     }
   } catch {
-    return Response.json({ error: "Invalid request body." }, { status: 400 });
+    return fail("bad_request", "Invalid request body.", 400);
   }
 
   const contents = toContents(messages);
   if (contents.length === 0) {
-    return Response.json({ error: "Ask something first." }, { status: 400 });
+    return fail("bad_request", "Ask something first.", 400);
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -220,7 +256,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         console.error("[ask] generation failed", error);
-        send({ type: "error", value: "The assistant is unavailable right now." });
+        send({ type: "error", code: isQuotaError(error) ? "quota" : "unavailable" });
       } finally {
         controller.close();
       }
