@@ -57,6 +57,55 @@ function renderRich(text: string) {
   });
 }
 
+/** Ritmo do texto que anuncia a espera: digitar, segurar, apagar. */
+const TYPE_MS = 80;
+const ERASE_MS = 50;
+const HOLD_MS = 1500;
+
+/**
+ * Escreve e apaga as palavras de `words` em ciclo, letra a letra, enquanto
+ * `active` for verdadeiro. Fora disso devolve string vazia — o que some do DOM
+ * assim que o primeiro pedaço da resposta chega.
+ */
+function useTypedCycle(active: boolean, words: string[]): string {
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    if (!active || words.length === 0) return;
+
+    let word = 0;
+    let chars = 0;
+    let erasing = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      const current = words[word % words.length];
+      chars += erasing ? -1 : 1;
+      setText(current.slice(0, chars));
+
+      if (!erasing && chars === current.length) {
+        erasing = true;
+        // Pausa com a palavra inteira na tela antes de desmanchá-la.
+        timer = setTimeout(tick, HOLD_MS);
+        return;
+      }
+      if (erasing && chars === 0) {
+        erasing = false;
+        word++;
+      }
+      timer = setTimeout(tick, erasing ? ERASE_MS : TYPE_MS);
+    };
+
+    // Primeira letra sem espera: cobre na hora o resto do ciclo anterior.
+    timer = setTimeout(tick, 0);
+    return () => clearTimeout(timer);
+  }, [active, words]);
+
+  // Fora da espera não há texto. Zerar aqui, e não com um setState dentro do
+  // efeito, evita a renderização em cascata que o compilador reclama.
+  return active ? text : "";
+}
+
 export default function AskDock({
   /** Avisa o Shell que o painel abriu, para ele subir o hero e dar espaço. */
   onOpenChange,
@@ -229,6 +278,12 @@ export default function AskDock({
     }
   }
 
+  // A palavra só faz sentido no vazio antes do primeiro token: depois disso a
+  // própria resposta já mostra que algo está acontecendo.
+  const last = messages.at(-1);
+  const waiting = busy && last?.role === "model" && !last.text;
+  const thinking = useTypedCycle(waiting, t.thinking);
+
   const showPanel = open && (messages.length > 0 || !busy);
 
   useEffect(() => {
@@ -331,7 +386,21 @@ export default function AskDock({
                   <p className="leading-relaxed whitespace-pre-wrap">
                     {renderRich(message.text)}
                     {busy && i === messages.length - 1 && (
-                      <span className="blink ml-0.5 inline-block text-accent">▍</span>
+                      <>
+                        <span className="blink ml-0.5 inline-block text-accent">
+                          ▍
+                        </span>
+                        {thinking && (
+                          // aria-hidden: o log é aria-live, e um texto que se
+                          // reescreve sozinho viraria tagarelice no leitor.
+                          <span
+                            aria-hidden
+                            className="ml-1.5 align-baseline font-mono text-[11px] text-white/30"
+                          >
+                            {thinking}
+                          </span>
+                        )}
+                      </>
                     )}
                   </p>
                   {message.contactSent === true && (

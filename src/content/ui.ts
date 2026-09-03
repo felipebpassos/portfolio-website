@@ -24,6 +24,11 @@ export type UiStrings = {
     close: string;
     empty: string;
     suggestions: string[];
+    /**
+     * Palavras que aparecem ao lado do cursor enquanto a resposta não começou
+     * a chegar. Entram e saem letra a letra, em ciclo, na ordem daqui.
+     */
+    thinking: string[];
     delivered: string;
     notDelivered: string;
     noAnswer: string;
@@ -70,6 +75,7 @@ const strings: Record<Locale, UiStrings> = {
         "How much AWS experience?",
         "Is he open to work?",
       ],
+      thinking: ["working…", "philosophizing…", "crafting…"],
       delivered: "✓ Message delivered",
       notDelivered: "! Not delivered — email {email}",
       noAnswer: "No answer came back. Reach out at {email}.",
@@ -79,7 +85,7 @@ const strings: Record<Locale, UiStrings> = {
       tooFast: "One question at a time — try again in a minute.",
       dailyLimit: "That's the question limit for today. Email {email}.",
       quotaOver:
-        "The assistant is out of credit for today. Email {email} and I'll reply.",
+        "The assistant is unavailable right now. Email {email} and I'll reply myself.",
       busy: "The assistant is briefly overloaded. Try again in a moment.",
     },
     work: {
@@ -112,6 +118,7 @@ const strings: Record<Locale, UiStrings> = {
         "Quanta experiência com AWS?",
         "Ele está aberto a propostas?",
       ],
+      thinking: ["trabalhando…", "filosofando…", "criando…"],
       delivered: "✓ Recado entregue",
       notDelivered: "! Não entregue — escreva para {email}",
       noAnswer: "Não veio resposta. Fale direto em {email}.",
@@ -121,7 +128,7 @@ const strings: Record<Locale, UiStrings> = {
       tooFast: "Uma pergunta de cada vez — tente de novo em um minuto.",
       dailyLimit: "Esse é o limite de perguntas por hoje. Escreva para {email}.",
       quotaOver:
-        "O assistente ficou sem crédito por hoje. Escreva para {email} que eu respondo.",
+        "O assistente está indisponível no momento. Escreva para {email} que eu mesmo respondo.",
       busy: "O assistente está sobrecarregado agora. Tente de novo em instantes.",
     },
     work: {
